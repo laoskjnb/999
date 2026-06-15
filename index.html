@@ -456,11 +456,9 @@
         window.fbOnValue(window.fbRef(window.fbDB, 'users'), (snapshot) => {
             allUsersData = snapshot.val() || {};
             if(currentActiveUser) {
-                // ກວດສອບຄວາມປອດໄພ: ຖ້າຢູເຊີຄົນນີ້ຖືກເຕະ (isKicked === true) ໃຫ້ດີດອອກທັນທີ
                 if(allUsersData[currentActiveUser.username]) {
                     let freshData = allUsersData[currentActiveUser.username];
                     if (freshData.isKicked === true) {
-                        // ລຶບສະຖານະການເຕະອອກກ່ອນ ເພື່ອໃຫ້ສາມາດເຂົ້າລະບົບໃໝ່ໄດ້ໃນອະນາຄົດ
                         window.fbUpdate(window.fbRef(window.fbDB, 'users/' + currentActiveUser.username), { isKicked: false });
                         handleLogout();
                         showAlert('⚠️ ທ່ານຖືກແອດມິນເຕະອອກຈາກລະບົບ! ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່.', "❌");
@@ -520,7 +518,7 @@
         window.fbSet(newUserRef, { 
             username: u, password: p, role: 'user', credit: 0, 
             lockMode: 'normal', topUpCount: 0, topUpAmount: 0, withdrawCount: 0, withdrawAmount: 0,
-            isKicked: false // ເພີ່ມຟີວກວດສອບສະຖານະການເຕະ
+            isKicked: false 
         }).then(() => {
             showAlert(`🎉 ສະມັກສະມາຊິກສຳເລັດແລ້ວ!`, "🤩");
             switchAuthPage('login-page');
@@ -569,14 +567,12 @@
 
     function setIndividualLock(username, mode) { window.fbUpdate(window.fbRef(window.fbDB, 'users/' + username), { lockMode: mode }); }
 
-    // ຟັງຊັນສຳລັບໃຫ້ແອດມິນກົດເຕະລູກຄ້າອອກ
+    // [ແກ້ໄຂຈຸດທີ 2]: ກົດເຕະແລ້ວລະບົບທຳການເຕະ ແລະ ແຈ້ງເຕືອນຕົກລົງເລີຍ (ບໍ່ມີຄຳຖາມ Confirm)
     function kickUserOut(username) {
-        if(confirm(`ທ່ານແນ່ໃຈບໍທີ່ຈະເຕະ ${username} ອອກຈາກລະບົບ?`)) {
-            window.fbUpdate(window.fbRef(window.fbDB, 'users/' + username), { isKicked: true })
-            .then(() => {
-                showAlert(`👞 ເຕະ ${username} ອອກຈາກລະບົບແລ້ວ!`, "✅");
-            }).catch(e => showAlert('ເກີດຂໍ້ຜິດພາດ!', "❌"));
-        }
+        window.fbUpdate(window.fbRef(window.fbDB, 'users/' + username), { isKicked: true })
+        .then(() => {
+            showAlert(`👞 ເຕະ ${username} ອອກຈາກລະບົບແລ້ວ!`, "✅");
+        }).catch(e => showAlert('ເກີດຂໍ້ຜິດພາດ!', "❌"));
     }
 
     function switchPage(pageId) {
@@ -614,7 +610,6 @@
 
         soundBeep.play().then(() => { soundBeep.pause(); }).catch(e => console.log(e));
         
-        // ປົດລັອກສະຖານະການເຕະກ່ອນເຂົ້າສູ່ລະບົບໃໝ່
         window.fbUpdate(window.fbRef(window.fbDB, 'users/' + u), { isKicked: false });
         
         currentActiveUser = allUsersData[u];
@@ -686,7 +681,6 @@
         document.getElementById('credit-to-add').value = '';
     }
 
-    // ເພີ່ມປຸ່ມ "ເຕະອອກ" ສີແດງ ເຂົ້າໄປໃນສ່ວນຈັດການລາຍຊື່ລູກຄ້າ
     function updateAdminUserList() {
         const listDisplay = document.getElementById('user-list-display');
         if(!listDisplay) return;
@@ -769,6 +763,7 @@
         if(!hasBets) display.innerHTML = '<div class="text-slate-600 text-center text-[11px]">⏳ ຍັງບໍ່ມີການວາງເດີມພັນ</div>';
     }
 
+    // [ແກ້ໄຂຈຸດທີ 1]: ປ່ຽນເງື່ອນໄຂການກວດສອບລາງວັນຂອງການແທງຄວບ (ແທງຄູ່)
     function checkRewardsAndPay(res1, res2, res3) {
         for (let username in liveBetsLog) {
             if(!allUsersData[username]) continue;
@@ -785,12 +780,16 @@
                 if (betAmount <= 0) continue;
 
                 if (type.includes('_')) {
+                    // ແທງຄວບ (ຕົວຢ່າງ: 'ປູ_ປາ')
                     let [sub1, sub2] = type.split('_');
-                    let matchCount = (diceCount[sub1] || 0) + (diceCount[sub2] || 0);
-                    if (matchCount > 0) {
-                        winAmount += betAmount + (betAmount * matchCount);
+                    
+                    // ຕ້ອງມີທັງ sub1 ແລະ sub2 ຢູ່ເທິງໜ້າລູກເຫຼັ້ມທັງສອງຢ່າງ ຈຶ່ງຈະຖືວ່າຖືກລາງວັນ
+                    if (diceCount[sub1] > 0 && diceCount[sub2] > 0) {
+                        // ຄິດໄລ່ອັດຕາຈ່າຍ: ໄດ້ທຶນຄືນ + ກຳໄລ 5 ເທົ່າ (ຫຼື ທ່ານສາມາດປ່ຽນຕົວຄູນຕາມຕ້ອງການ)
+                        winAmount += betAmount + (betAmount * 5);
                     }
                 } else {
+                    // ແທງເຕັງດ່ຽວ
                     if (diceCount[type]) {
                         let count = diceCount[type];
                         winAmount += betAmount + (betAmount * count); 
