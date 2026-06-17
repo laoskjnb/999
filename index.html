@@ -122,6 +122,7 @@
     let serverTimeOffset = 0; 
     let isProcessingResult = false; 
     let lastProcessedRoundId = null; 
+    let lastSpokenTime = null; 
 </script>
 
 <script type="module">
@@ -154,7 +155,7 @@
     window.fbRunTransaction = runTransaction;
     window.fbServerTimestamp = serverTimestamp;
     
-    console.log("🚀 Firebase ເຊື່ອມຕໍ່ສຳເລັດແລ້ວ!");
+    console.log("🚀 Firebase ເເຊື່ອມຕໍ່ສຳເລັດແລ້ວ!");
     
     if (typeof initGameListeners === "function") {
         initGameListeners();
@@ -177,7 +178,7 @@
         </div>
         <div class="space-y-3 text-sm">
             <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ຊື່ຜູ້ໃຊ້:</span>
+                <span class="text-slate-400">ชืຶ่ຜູ້ໃຊ້:</span>
                 <span id="md-username" class="font-bold text-slate-200">...</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-800/40">
@@ -208,7 +209,7 @@
 <div id="customer-settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-blue-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-all">
         <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-4">
-            <h3 class="text-base font-bold text-blue-400 flex items-center"><i class="fas fa-cog mr-2"></i>ການຕັ້ງຄ່າ & ປະຫວັດທຸລະກຳ</h3>
+            <h3 class="text-base font-bold text-blue-400 flex items-center"><i class="fas fa-cog mr-2"></i>การตั้งค่า & ประวัติธุรกรรม</h3>
             <button onclick="closeCustomerSettingsModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
         </div>
         <div class="space-y-4 text-sm">
@@ -262,7 +263,7 @@
             </div>
             <div>
                 <label class="block text-xs text-slate-400 mb-1">ລະຫັດຜ່ານ (Password)</label>
-                <input type="password" id="reg-password" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white" placeholder="ຕັ້ງລະຫັດຜ່ານ">
+                <input type="password" id="reg-password" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white" placeholder="ຕັ້ງລະหັດຜ່ານ">
             </div>
             <div>
                 <label class="block text-xs text-slate-400 mb-1">ຢືນຢັນລະຫັດຜ່ານ</label>
@@ -326,7 +327,7 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="topUpCredit('add')" class="bg-amber-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition hover:bg-amber-400">ເຕີມເງິນ</button>
-                    <button onclick="topUpCredit('remove')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">ດຶງເຄຣດິດຄືນ</button>
+                    <button onclick="topUpCredit('remove')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">ຖອນເງິນ</button>
                 </div>
             </div>
 
@@ -420,8 +421,8 @@
 
         <div class="flex justify-center space-x-2 py-2 bg-slate-900/40 rounded-xl p-2 border border-slate-800">
             <button onclick="selectChip(5000)" id="chip-5000" class="w-[58px] h-11 rounded-full bg-blue-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition chip-active">5ພັນ</button>
-            <button onclick="selectChip(20000)" id="chip-20000" class="w-[58px] h-11 rounded-full bg-amber-500 border border-white font-mono font-bold text-[10px] text-slate-950 shadow-md active:scale-90 transition">2หมื่น</button>
-            <button onclick="selectChip(50000)" id="chip-50000" class="w-[58px] h-11 rounded-full bg-emerald-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">5หมื่น</button>
+            <button onclick="selectChip(20000)" id="chip-20000" class="w-[58px] h-11 rounded-full bg-amber-500 border border-white font-mono font-bold text-[10px] text-slate-950 shadow-md active:scale-90 transition">20ພັນ</button>
+            <button onclick="selectChip(50000)" id="chip-50000" class="w-[58px] h-11 rounded-full bg-emerald-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">50ພັນ</button>
             <button onclick="selectChip(100000)" id="chip-100000" class="w-[58px] h-11 rounded-full bg-purple-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">1ແສນ</button>
             <button onclick="selectChip(200000)" id="chip-200000" class="w-[58px] h-11 rounded-full bg-red-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">2ແສນ</button>
         </div>
@@ -436,7 +437,7 @@
                 <span class="text-[10px] text-slate-400 block mb-1.5 font-bold"><i class="fas fa-chart-bar mr-1"></i> ສະຖິຕິການອອກ (10 ຮອບຫຼ້າສຸດ)</span>
                 <div id="dice-stats-container" class="grid grid-cols-6 gap-1 text-center text-xs">
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🦀 <span id="stat-count-ປູ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
-                    <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐟 <span id="stat-count-ປາ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
+                    <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐟 <span id="stat-count-ปา" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🏮 <span id="stat-count-ນ້ຳເຕົ້າ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐯 <span id="stat-count-ເສືອ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐓 <span id="stat-count-ໄກ່" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
@@ -528,7 +529,7 @@
                     if (freshData.isKicked === true) {
                         window.fbUpdate(window.fbRef(window.fbDB, 'users/' + currentActiveUser.username), { isKicked: false });
                         handleLogout();
-                        showAlert('⚠️ ທ່ານຖືກແອດມິນເຕະອອກຈາກລະບົບ! ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່.', "❌");
+                        showAlert('⚠️ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່.', "❌");
                         return;
                     }
                     currentActiveUser.credit = freshData.credit;
@@ -540,7 +541,6 @@
             }
         });
 
-        // ຕິດຕາມປະຫວັດຜົນອອກ 24h Realtime ຈາກ Firebase ເພື່ອອັບເດດຕາຕະລາງ
         window.fbOnValue(window.fbRef(window.fbDB, 'game_status/history_24h'), (snapshot) => {
             if(snapshot.exists()) {
                 updateHistoryTableUI(snapshot.val());
@@ -550,18 +550,15 @@
         start24hLoopTimer();
     }
 
-    // ຟັງຊັນອັບເດດ UI ຕາຕະລາງຜົນອອກ ແລະ ສະຖິຕິ
     function updateHistoryTableUI(historyData) {
         const tbody = document.getElementById('result-history-table-body');
         const quickHist = document.getElementById('quick-hist');
         if(!tbody) return;
 
-        // ປ່ຽນ Object ໃຫ້ເປັນ Array ແລ້ວລຽງລໍາດັບຮອບຈາກໃຫຍ່ຫາໜ້ອຍ (ຮອບຫຼ້າສຸດຢູ່ເທິງ)
         let sortedRounds = Object.keys(historyData).map(id => {
             return { roundId: parseInt(id), dice: historyData[id] };
         }).sort((a, b) => b.roundId - a.roundId);
 
-        // 1. ອັບເດດຜົນຫຼ້າສຸດ 2 ຮອບແບບດ່ວນດ້ານເທິງ
         if(sortedRounds.length >= 1) {
             let text = `${sortedRounds[0].dice[0].emoji}${sortedRounds[0].dice[1].emoji}${sortedRounds[0].dice[2].emoji}`;
             if(sortedRounds[1]) {
@@ -570,7 +567,6 @@
             if(quickHist) quickHist.innerText = text;
         }
 
-        // 2. ຄິດໄລ່ສະຖິຕິການອອກຂອງແຕ່ລະຮູບ (ນັບຈາກ 10 ຮອບຫຼ້າສຸດ)
         let statsCount = { 'ປູ': 0, 'ປາ': 0, 'ນ້ຳເຕົ້າ': 0, 'ເສືອ': 0, 'ໄກ່': 0, 'ກຸ້ງ': 0 };
         let last10Rounds = sortedRounds.slice(0, 10);
         
@@ -580,13 +576,11 @@
             });
         });
 
-        // ສະແດງຕົວເລກສະຖິຕິໃສ່ UI
         for(let key in statsCount) {
             const statEl = document.getElementById(`stat-count-${key}`);
             if(statEl) statEl.innerText = statsCount[key] + " ເທື່ອ";
         }
 
-        // 3. ສ້າງລາຍການແຖວຕາຕະລາງ (ເອົາພຽງແຕ່ 10 ຮອບຫຼ້າສຸດເພື່ອຄວາມໄວ ແລະ ສະອາດ)
         tbody.innerHTML = '';
         if(last10Rounds.length === 0) {
             tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500">⏳ ຍັງບໍ່ມີປະຫວັດການຫຼິ້ນ</td></tr>`;
@@ -597,7 +591,6 @@
             const tr = document.createElement('tr');
             tr.className = "hover:bg-slate-900/40 transition-colors";
             
-            // ຄັດລອກເອົາຊື່ລູກເຕົາທັງໝົດມາສະແດງ
             let names = r.dice.map(d => d.name).join('·');
             let emojis = r.dice.map(d => d.emoji).join(' ');
 
@@ -642,8 +635,11 @@
                 if (timerBox) timerBox.innerText = timeLeft;
 
                 if (timeLeft <= 5 && timeLeft > 0) {
-                    soundBeep.currentTime = 0; 
-                    soundBeep.play().catch(e => console.log(e));
+                    if (lastSpokenTime !== timeLeft) {
+                        lastSpokenTime = timeLeft;
+                        window.speechSynthesis.cancel(); 
+                        playAudioResult(timeLeft.toString());
+                    }
                 }
             } else {
                 isBettingOpen = false;
@@ -659,8 +655,7 @@
 
                 if (!isProcessingResult) {
                     isProcessingResult = true;
-                    soundBeep.pause();
-                    soundBeep.currentTime = 0;
+                    window.speechSynthesis.cancel(); 
                     soundTimeOut.currentTime = 0; 
                     soundTimeOut.play().catch(e => console.log(e));
 
@@ -686,7 +681,7 @@
                     });
                 }
             }
-        }, 500);
+        }, 200); 
     }
 
     function showAlert(message, icon = "🔔") {
@@ -718,7 +713,7 @@
         const uData = allUsersData[currentActiveUser.username] || currentActiveUser;
         
         document.getElementById('cust-topup-date').innerText = uData.lastTopUpDate || "ຍັງບໍ່ມີປະຫວັດ";
-        document.getElementById('cust-withdraw-date').innerText = uData.lastWithdrawDate || "ຍັງບໍ່ມີປະหวັດ";
+        document.getElementById('cust-withdraw-date').innerText = uData.lastWithdrawDate || "ຍັງບໍ່ມີປະຫວັດ";
         
         document.getElementById('customer-settings-modal').classList.remove('hidden');
     }
@@ -763,7 +758,16 @@
     function playAudioResult(text) {
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'th-TH'; utterance.rate = 0.95;     
+            utterance.lang = 'th-TH'; 
+            utterance.rate = 0.9;     
+            utterance.pitch = 1.0;    
+
+            const voices = window.speechSynthesis.getVoices();
+            const femaleVoice = voices.find(voice => voice.lang.includes('TH') && (voice.name.toLowerCase().includes('female') || voice.name.toLowerCase().includes('google') || voice.name.toLowerCase().includes('narisa')));
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+            }
+
             window.speechSynthesis.speak(utterance);
         }
     }
@@ -775,6 +779,18 @@
             document.getElementById('credit-display').innerText = "∞ ກີບ";
         } else {
             document.getElementById('credit-display').innerText = (currentActiveUser.credit || 0).toLocaleString() + " ກີບ";
+        }
+    }
+
+    function getLaoPronunciation(name) {
+        switch(name) {
+            case 'ປູ': return 'ปู';
+            case 'ປາ': return 'ปลา';
+            case 'ນ້ຳເຕົ້າ': return 'น้ำเต้า';
+            case 'ເສືອ': return 'เสือ';
+            case 'ໄກ່': return 'ไก่';
+            case 'ກຸ້ງ': return 'กุ้ง';
+            default: return name;
         }
     }
 
@@ -800,6 +816,7 @@
 
     function setIndividualLock(username, mode) { window.fbUpdate(window.fbRef(window.fbDB, 'users/' + username), { lockMode: mode }); }
 
+    // Format numbers like 5000 -> 5ພັນ
     function formatBetLabel(val) {
         if (val >= 100000) {
             return (val / 100000) + "ແສນກີບ";
@@ -847,20 +864,20 @@
         const u = document.getElementById('login-username').value.trim();
         const p = document.getElementById('login-password').value.trim();
         
-        if(!u || !p) return showAlert('กະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ!', "⚠️");
+        if(!u || !p) return showAlert('ກະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ!', "⚠️");
 
         window.fbGet(window.fbRef(window.fbDB, 'users/' + u)).then((snapshot) => {
-            if(!snapshot.exists()) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
+            if(!snapshot.exists()) return showAlert('ชืຶ่ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
             
             let userData = snapshot.val();
-            if(userData.password !== p) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
+            if(userData.password !== p) return showAlert('ชืຶ่ຜູ້ໃຊ້ ຫຼື ລະหັດຜ່ານບໍ່ถูกຕ້ອງ!', "❌");
 
-            soundBeep.play().then(() => { soundBeep.pause(); }).catch(e => console.log(e));
             window.fbUpdate(window.fbRef(window.fbDB, 'users/' + u), { isKicked: false });
             
             currentActiveUser = userData;
             localStorage.setItem('saved_username', u);
             switchPage('game-page');
+            playAudioResult(""); 
         }).catch(() => showAlert('ເກີດຂໍ້ຜິດພາດໃນການເຊື່ອມຕໍ່!', "❌"));
     }
 
@@ -965,7 +982,7 @@
                         <div class="flex items-center space-x-1 flex-wrap gap-y-1 justify-end">
                             <span class="text-amber-400 font-bold text-xs mr-1 w-full text-right">${(allUsersData[key].credit || 0).toLocaleString()} ກີບ</span>
                             <button onclick="showUserDetailModal('${allUsersData[key].username}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[10px] px-2 py-1 rounded transition shadow-sm">ລາຍລະອຽດ</button>
-                            <button onclick="kickUserOut('${allUsersData[key].username}')" class="bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] px-2 py-1 rounded transition shadow-sm"><i class="fas fa-user-slash"></i> ເຕະເຄຣດິດ</button>
+                            <button onclick="kickUserOut('${allUsersData[key].username}')" class="bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] px-2 py-1 rounded transition shadow-sm"><i class="fas fa-user-slash"></i> ເເຕະລູກຄ້າອອກຈາກລະບົບ</button>
                         </div>
                     </div>
                     <div class="grid grid-cols-3 gap-1 pt-1">
@@ -1157,7 +1174,13 @@
         const res2 = currentRoundResults[1];
         const res3 = currentRoundResults[2];
 
-        playAudioResult(`ผลที่ออกคือ ${res1.name} ${res2.name} ${res3.name}`);
+        const read1 = getLaoPronunciation(res1.name);
+        const read2 = getLaoPronunciation(res2.name);
+        const read3 = getLaoPronunciation(res3.name);
+        
+        // ແກ້ໄຂຈຸດນີ້: ໃຫ້ອ່ານ "ຜົນອອກ" ນຳໜ້າຢ່າງຖືກຕ້ອງ ໂດຍບໍ່ມີຕົວເລກ 54321 ທີ່ອ່ານຜິດພາດ
+        playAudioResult(`ออก ${read1} ${read2} ${read3}`);
+
         checkRewardsAndPay(res1, res2, res3);
 
         setTimeout(() => {
