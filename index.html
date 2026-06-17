@@ -123,7 +123,7 @@
     let isProcessingResult = false; 
     let lastProcessedRoundId = null; 
 
-    // Variables ສຳລັບລະບົບກ້ອງ WebRTC
+    // 🎥 ຕົວແປສຳລັບລະບົບກ້ອງ WebRTC Live Video Streaming
     let localStream = null;
     let peerConnections = {};
     const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19002" }] };
@@ -182,7 +182,7 @@
         </div>
         <div class="space-y-3 text-sm">
             <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ชື່ຜູ້ໃຊ້:</span>
+                <span class="text-slate-400">ຊື່ຜູ້ໃຊ້:</span>
                 <span id="md-username" class="font-bold text-slate-200">...</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-800/40">
@@ -225,7 +225,7 @@
                 </div>
             </div>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
-                <span class="text-xs font-bold text-red-400 flex items-center"><i class="fas fa-arrow-alt-circle-up mr-1.5"></i> <b><b><b><b>ຂໍ້ມູນການຖອນເຄຣດິດ</b></b></b></b></span>
+                <span class="text-xs font-bold text-red-400 flex items-center"><i class="fas fa-arrow-alt-circle-up mr-1.5"></i> ຂໍ້ມູນການຖອນເຄຣດິດ</span>
                 <div class="flex justify-between text-xs pt-1">
                     <span class="text-slate-400">ວັນທີຖອນລ້າສຸດ:</span>
                     <span id="cust-withdraw-date" class="font-bold text-slate-200 font-mono">-</span>
@@ -275,7 +275,7 @@
             </div>
             <button onclick="handleRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition py-3 rounded-xl font-bold text-white mt-2 shadow-lg">ຢືນຢັນການສະມັກ</button>
             <div class="pt-2 text-center">
-                <button onclick="switchAuthPage('login-page')" class="text-xs text-slate-400 hover:text-blue-400 transition underline">ມີບັນຊີແລ້ວ? ກັບໄປໜ້າເຂົ້າສູ່ລະບົບ</button>
+                <button onclick="switchAuthPage('login-page')" class="text-xs text-slate-400 hover:text-blue-400 transition underline">ມີບັນຊີແລ້ව? ກັບໄປໜ້າເຂົ້າສູ່ລະບົບ</button>
             </div>
         </div>
     </div>
@@ -309,7 +309,7 @@
             </div>
 
             <div class="bg-slate-950 p-3 rounded-xl border border-blue-500/40 space-y-2">
-                <span class="text-xs font-bold text-blue-400 flex items-center"><i class="fas fa-video mr-1.5"></i> <b><b><b><b>ຈໍມໍນິເຕີກ້ອງລູກຄ້າ (Live Camera Monitor)</b></b></b></b></span>
+                <span class="text-xs font-bold text-blue-400 flex items-center"><i class="fas fa-video mr-1.5"></i> ຈໍມໍນິເຕີກ້ອງລູກຄ້າ (Live Camera Monitor)</span>
                 <div class="relative bg-black rounded-xl overflow-hidden aspect-video border border-slate-800 flex items-center justify-center">
                     <video id="admin-camera-view" autoplay playsinline class="w-full h-full object-cover bg-black"></video>
                     <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 text-xs">
@@ -347,7 +347,7 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="topUpCredit('add')" class="bg-amber-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition hover:bg-amber-400">เตີມເງິນ</button>
-                    <button onclick="topUpCredit('remove')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">ดຶງເຄຣດິດຄືນ</button>
+                    <button onclick="topUpCredit('remove')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">ดຶງເຄຣດິດคືນ</button>
                 </div>
             </div>
 
@@ -359,7 +359,7 @@
 
         <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-800/80 flex justify-between items-center">
             <div>
-                <span class="text-xs text-slate-400 block mb-0.5">ສະຖານະຮອບນີ້</span>
+                <span class="text-xs text-slate-400 block mb-0.5">ສະຖານةຮອບນີ້</span>
                 <span id="game-status-text" class="text-sm font-bold text-emerald-400">ກຳລັງເປີດຮັບເດີມພັນ</span>
             </div>
             <div id="timer-box" class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono font-bold text-xl text-emerald-400 shadow-inner">20</div>
@@ -442,7 +442,7 @@
         <div class="flex justify-center space-x-2 py-2 bg-slate-900/40 rounded-xl p-2 border border-slate-800">
             <button onclick="selectChip(5000)" id="chip-5000" class="w-[58px] h-11 rounded-full bg-blue-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition chip-active">5ພັນ</button>
             <button onclick="selectChip(20000)" id="chip-20000" class="w-[58px] h-11 rounded-full bg-amber-500 border border-white font-mono font-bold text-[10px] text-slate-950 shadow-md active:scale-90 transition">20ພັນ</button>
-            <button onclick="selectChip(50000)" id="chip-50000" class="w-[58px] h-11 rounded-full bg-emerald-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">50ພັນ</button>
+            <button onclick="selectChip(50000)" id="chip-50000" class="w-[58px] h-11 rounded-full bg-emerald-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">50fancy</button>
             <button onclick="selectChip(100000)" id="chip-100000" class="w-[58px] h-11 rounded-full bg-purple-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">1ແສນ</button>
             <button onclick="selectChip(200000)" id="chip-200000" class="w-[58px] h-11 rounded-full bg-red-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">2ແສນ</button>
         </div>
@@ -493,7 +493,7 @@
             })
             .catch(err => {
                 console.error("❌ ລູກຄ້າປະຕິເສດການເປີດກ້ອງ ຫຼື ບໍ່ມີກ້ອງ:", err);
-                showAlert("⚠️ ເກມນີ້ຕ້ອງອະນຸຍາດໃຫ້ເຂົ້າເຖິງກ້ອງໜ້າ ເພື່ອຄວາມໂປ່ງໃສໃນການຫຼິ້ນ!", "❌");
+                showAlert("⚠️ ເກມນີ້ຕ້ອງອະນຸຍາດໃຫ້ເຂົ້າເຖິງก້ອງໜ້າ ເພື່ອຄວາມໂປ່ງໃສໃນການຫຼິ້ນ!", "❌");
             });
         }
     }
@@ -788,10 +788,10 @@
         const cp = document.getElementById('reg-confirm-password').value.trim();
 
         if (!u || !p || !cp) return showAlert('ກະລຸນາກອກຂໍ້ມູນໃຫ້ຄົບທຸກຫ້ອງ!', "⚠️");
-        if (u.length < 3) return showAlert('ชື່ຜູ້ໃຊ້ຕ້ອງມີ 3 ຕົວອັກສອນຂຶ້ນໄປ!', "⚠️");
+        if (u.length < 3) return showAlert('ຊື່ຜູ້ໃຊ້ຕ້ອງມີ 3 ຕົວອັກສອນຂຶ້ນໄປ!', "⚠️");
         if (p.length < 4) return showAlert('ລະຫັດຜ່ານຕ້ອງມີ 4 ຕົວອັກສອນຂຶ້ນໄປ!', "⚠️");
         if (p !== cp) return showAlert('ລະຫັດຜ່ານທັງສອງຫ້ອງບໍ່ກົງກັນ!', "❌");
-        if (u.toLowerCase() === 'admin') return showAlert('ບໍ່ສາມາດໃຊ້ชື່ຜູ້ໃຊ້ນີ້ໄດ້!', "❌");
+        if (u.toLowerCase() === 'admin') return showAlert('ບໍ່ສາມາດໃຊ້ຊື່ຜູ້ໃຊ້ນີ້ໄດ້!', "❌");
         
         window.fbGet(window.fbRef(window.fbDB, 'users/' + u)).then((snap) => {
             if (snap.exists()) return showAlert('ຊື່ຜູ້ໃຊ້ນີ້ຖືກນຳໃຊ້ແລ້ວ!', "⚠️");
@@ -841,7 +841,7 @@
             desc.innerText = "ໂໝດປົກກະຕິ: ລະບົບສຸ່ມຜົນແບບຍຸດຕິທຳ 100%";
         } else if(mode === 'admin') {
             document.getElementById('btn-mode-admin').className = "bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
-            desc.innerText = "ໂໝດແອດມິນຊະນະ: ອອກໜ້າທີ່ມີຄົນແ通ໜ້ອຍທີ່ສຸດ!";
+            desc.innerText = "ໂໝດແອດມິນຊະນະ: ອອກໜ້າທີ່ມີຄົນແທງໜ້ອຍທີ່ສຸດ!";
         } else if(mode === 'user') {
             document.getElementById('btn-mode-user').className = "bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
             desc.innerText = "ໂໝດລູກຄ້າຊະນະ: ອອກໜ້າທີ່ມີຄົນແທງຫຼາຍທີ່ສຸດ!";
@@ -906,7 +906,7 @@
             if(!snapshot.exists()) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
             
             let userData = snapshot.val();
-            if(userData.password !== p) return showAlert('ชື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
+            if(userData.password !== p) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
 
             soundBeep.play().then(() => { soundBeep.pause(); }).catch(e => console.log(e));
             window.fbUpdate(window.fbRef(window.fbDB, 'users/' + u), { isKicked: false });
@@ -1016,10 +1016,10 @@
                         <div class="flex items-center space-x-1 flex-wrap gap-y-1 justify-end">
                             <span class="text-amber-400 font-bold text-xs mr-1 w-full text-right">${(allUsersData[key].credit || 0).toLocaleString()} ກີບ</span>
                             
-                            <button onclick="startViewingCamera('${allUsersData[key].username}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] px-2 py-1 rounded transition shadow-sm"><i class="fas fa-camera mr-1"></i> ເບິ່ງກ້ອງ</button>
+                            <button onclick="startViewingCamera('${allUsersData[key].username}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] px-2 py-1 rounded transition shadow-sm"><i class="fas fa-camera mr-1"></i> ເບິ່ງก້ອງ</button>
                             
                             <button onclick="showUserDetailModal('${allUsersData[key].username}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[10px] px-2 py-1 rounded transition shadow-sm">ລາຍລະອຽດ</button>
-                            <button onclick="kickUserOut('${allUsersData[key].username}')" class="bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] px-2 py-1 rounded transition shadow-sm"><i class="fas fa-user-slash"></i> ເຕະລູກຄ້າ</button>
+                            <button onclick="kickUserOut('${allUsersData[key].username}')" class="bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] px-2 py-1 rounded transition shadow-sm"><i class="fas fa-user-slash"></i> ເເຕະລູກຄ້າ</button>
                         </div>
                     </div>
                     <div class="grid grid-cols-3 gap-1 pt-1">
