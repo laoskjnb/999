@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOP - ເວີຊັນກະດານຄലാສສິກ 3D Realtime Firebase</title>
+    <title>MOP - ເວີຊັນກະດານຄລາສສິກ 3D Realtime Firebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -178,7 +178,7 @@
         </div>
         <div class="space-y-3 text-sm">
             <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ชืຶ่ຜູ້ໃຊ້:</span>
+                <span class="text-slate-400">ຊື່ຜູ້ໃຊ້:</span>
                 <span id="md-username" class="font-bold text-slate-200">...</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-800/40">
@@ -209,7 +209,7 @@
 <div id="customer-settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-blue-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-all">
         <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-4">
-            <h3 class="text-base font-bold text-blue-400 flex items-center"><i class="fas fa-cog mr-2"></i>การตั้งค่า & ประวัติธุรกรรม</h3>
+            <h3 class="text-base font-bold text-blue-400 flex items-center"><i class="fas fa-cog mr-2"></i>ການຕັ້ງຄ່າ & ປະຫວັດທຸລະກຳ</h3>
             <button onclick="closeCustomerSettingsModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
         </div>
         <div class="space-y-4 text-sm">
@@ -263,7 +263,7 @@
             </div>
             <div>
                 <label class="block text-xs text-slate-400 mb-1">ລະຫັດຜ່ານ (Password)</label>
-                <input type="password" id="reg-password" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white" placeholder="ຕັ້ງລະหັດຜ່ານ">
+                <input type="password" id="reg-password" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white" placeholder="ຕັ້ງລະຫັດຜ່ານ">
             </div>
             <div>
                 <label class="block text-xs text-slate-400 mb-1">ຢືນຢັນລະຫັດຜ່ານ</label>
@@ -437,7 +437,7 @@
                 <span class="text-[10px] text-slate-400 block mb-1.5 font-bold"><i class="fas fa-chart-bar mr-1"></i> ສະຖິຕິການອອກ (10 ຮອບຫຼ້າສຸດ)</span>
                 <div id="dice-stats-container" class="grid grid-cols-6 gap-1 text-center text-xs">
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🦀 <span id="stat-count-ປູ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
-                    <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐟 <span id="stat-count-ปา" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
+                    <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐟 <span id="stat-count-ປາ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🏮 <span id="stat-count-ນ້ຳເຕົ້າ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐯 <span id="stat-count-ເສືອ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🐓 <span id="stat-count-ໄກ່" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
@@ -783,16 +783,16 @@
     }
 
     function getLaoPronunciation(name) {
-        switch(name) {
-            case 'ປູ': return 'ปู';
-            case 'ປາ': return 'ปลา';
-            case 'ນ້ຳເຕົ້າ': return 'น้ำเต้า';
-            case 'ເສືອ': return 'เสือ';
-            case 'ໄກ່': return 'ไก่';
-            case 'ກຸ້ງ': return 'กุ้ง';
-            default: return name;
-        }
+    switch(name) {
+        case 'ປູ': return 'ปู';
+        case 'ປາ': return 'ปลา';
+        case 'ນ້ຳເຕົ້າ': return 'น้ำเต้า';
+        case 'ເສືອ': return 'เสือ';
+        case 'ໄກ່': return 'ไก่';
+        case 'ກຸ້ງ': return 'กุ้ง';
+        default: return name;
     }
+}
 
     function setCheatMode(mode) { window.fbSet(window.fbRef(window.fbDB, 'game_status/global_mode'), mode); }
 
@@ -816,7 +816,6 @@
 
     function setIndividualLock(username, mode) { window.fbUpdate(window.fbRef(window.fbDB, 'users/' + username), { lockMode: mode }); }
 
-    // Format numbers like 5000 -> 5ພັນ
     function formatBetLabel(val) {
         if (val >= 100000) {
             return (val / 100000) + "ແສນກີບ";
@@ -867,10 +866,10 @@
         if(!u || !p) return showAlert('ກະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ!', "⚠️");
 
         window.fbGet(window.fbRef(window.fbDB, 'users/' + u)).then((snapshot) => {
-            if(!snapshot.exists()) return showAlert('ชืຶ่ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
+            if(!snapshot.exists()) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
             
             let userData = snapshot.val();
-            if(userData.password !== p) return showAlert('ชืຶ่ຜູ້ໃຊ້ ຫຼື ລະหັດຜ່ານບໍ່ถูกຕ້ອງ!', "❌");
+            if(userData.password !== p) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
 
             window.fbUpdate(window.fbRef(window.fbDB, 'users/' + u), { isKicked: false });
             
@@ -893,6 +892,15 @@
     function placeBet(type) {
         if (!isBettingOpen) return showAlert('ປິດຮັບເດີມພັນແລ້ວ!', "⏳");
         if (!currentActiveUser) return showAlert('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ!', "⚠️");
+        
+        // --- ເພີ່ມຟັງຊັນກວດສອບເຄຣດິດຢູ່ບ່ອນນີ້ ---
+        if (currentActiveUser.role !== 'admin') {
+            if (!currentActiveUser.credit || currentActiveUser.credit < selectedChipValue) {
+                return showAlert('ເຄຣດິດບໍ່ພໍ! ກະລຸນາຕິດຕໍແອດມິນເພື້ອເຕີມເງິນ', "❌");
+            }
+        }
+        // --- ສິ້ນສຸດການເພີ່ມຟັງຊັນ ---
+
         let myUsername = currentActiveUser.username;
 
         if (currentActiveUser.role !== 'admin') {
@@ -903,6 +911,7 @@
                 return currentCredit - selectedChipValue;
             }).then((result) => {
                 if (!result.committed || result.snapshot.val() === null) {
+                    // ຖ້າຜິດພາດໃນການຕັດເງິນ (ເຊັ່ນ: ເງິນບໍ່ພໍໃນຂະນະກົດ)
                     showAlert('ເຄຣດິດບໍ່ພໍ!', "❌");
                     return;
                 }
@@ -986,9 +995,9 @@
                         </div>
                     </div>
                     <div class="grid grid-cols-3 gap-1 pt-1">
-                        <button onclick="setIndividualLock('${allUsersData[key].username}', 'normal')" class="${btnNormalClass} py-1 px-1 rounded text-[10px] transition"><b><b>ປົກກະຕິ</b></b></button>
-                        <button onclick="setIndividualLock('${allUsersData[key].username}', 'user')" class="${btnUserClass} py-1 px-1 rounded text-[10px] transition"><b><b>ລູກຄ້າຊະນະ</b></b></button>
-                        <button onclick="setIndividualLock('${allUsersData[key].username}', 'admin')" class="${btnAdminClass} py-1 px-1 rounded text-[10px] transition"><b><b>ລັອກກິນ</b></b></button>
+                        <button onclick="setIndividualLock('${allUsersData[key].username}', 'normal')" class="${btnNormalClass} py-1 px-1 rounded text-[10px] transition"><b>ປົກກະຕິ</b></button>
+                        <button onclick="setIndividualLock('${allUsersData[key].username}', 'user')" class="${btnUserClass} py-1 px-1 rounded text-[10px] transition"><b>ລູກຄ້າຊະນະ</b></button>
+                        <button onclick="setIndividualLock('${allUsersData[key].username}', 'admin')" class="${btnAdminClass} py-1 px-1 rounded text-[10px] transition"><b>ລັອກກິນ</b></button>
                     </div>
                 `;
                 listDisplay.appendChild(div);
@@ -1178,7 +1187,6 @@
         const read2 = getLaoPronunciation(res2.name);
         const read3 = getLaoPronunciation(res3.name);
         
-        // ແກ້ໄຂຈຸດນີ້: ໃຫ້ອ່ານ "ຜົນອອກ" ນຳໜ້າຢ່າງຖືກຕ້ອງ ໂດຍບໍ່ມີຕົວເລກ 54321 ທີ່ອ່ານຜິດພາດ
         playAudioResult(`ออก ${read1} ${read2} ${read3}`);
 
         checkRewardsAndPay(res1, res2, res3);
