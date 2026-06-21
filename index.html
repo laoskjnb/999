@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOP - ເວີຊັນກະດານຄລາສສິກ 3D Realtime Firebase</title>
+    <title>ເວັບການພະນັນອ່ອນໄລອັນດັບ 1 ໃໜ່ລາວ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -1295,7 +1295,7 @@
         
         if (currentActiveUser.role !== 'admin') {
             if (!currentActiveUser.credit || currentActiveUser.credit < selectedChipValue) {
-                return showAlert('ເຄຣດິດບໍ່ພໍ! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌");
+                return showAlert('ເງິນບໍພໍ່! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌");
             }
         }
 
@@ -1358,13 +1358,13 @@
                     lastTopUpDate: dateString 
                 }).then(() => showAlert(`👍 ເຕີມເງິນໃຫ້ ${targetUser} ສຳເລັດ!`, "💰"));
             } else if(action === 'remove') {
-                if((uData.credit || 0) < amount) return showAlert('ເຄຣດິດບໍ່ພໍໃຫ້ດຶງຄືນ!', "❌");
+                if((uData.credit || 0) < amount) return showAlert('ບໍມີເງິນໄນບັນຊີຂອງທ່ານ!', "❌");
                 window.fbUpdate(userRef, {
                     credit: uData.credit - amount,
                     withdrawCount: (uData.withdrawCount || 0) + 1,
                     withdrawAmount: (uData.withdrawAmount || 0) + amount,
                     lastWithdrawDate: dateString 
-                }).then(() => showAlert(`👌 ດຶງເຄຣດິດຄືນສຳເລັດ!`, "💰"));
+                }).then(() => showAlert(`👌 ຖອນເງິນສຳເລັດ!`, "💰"));
             }
         });
 
@@ -1864,7 +1864,7 @@
 
         if (currentActiveUser.role !== 'admin') {
             if (!currentActiveUser.credit || currentActiveUser.credit < bcSelectedChip) {
-                return showAlert('ເຄຣດິດບໍ່ພໍ! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌");
+                return showAlert('ເງິນບໍພໍ່! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌");
             }
         }
 
@@ -1878,7 +1878,7 @@
                 return currentCredit - bcSelectedChip;
             }).then((result) => {
                 if (!result.committed || result.snapshot.val() === null) {
-                    showAlert('ເຄຣດິດບໍ່ພໍ!', "❌");
+                    showAlert('ເງິນບໍພໍ່!', "❌");
                     return;
                 }
                 const betRef = window.fbRef(window.fbDB, `baccarat_live_bets/${myUsername}/${side}`);
@@ -1918,7 +1918,7 @@
                 let parts = [];
                 if (b.player > 0) parts.push(`ຜູ້ເລ່ນ:${b.player.toLocaleString()}`);
                 if (b.banker > 0) parts.push(`ເຈົ້າມື:${b.banker.toLocaleString()}`);
-                if (b.tie > 0) parts.push(`ເສມີ:${b.tie.toLocaleString()}`);
+                if (b.tie > 0) parts.push(`ສະເໝີ:${b.tie.toLocaleString()}`);
                 if (parts.length > 0) {
                     hasBets = true;
                     const div = document.createElement('div');
