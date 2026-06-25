@@ -3,12 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ເວັບພະນັນອ່ອນໄລ໌ອັນດັບ 1 ໃນປະເທດລາວ</title>
+    <title>MOP - ເວີຊັນກະດານຄລາສສິກ 3D Realtime Firebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght=400;700&display=swap');
-        body { font-family: 'Noto Sans Lao', sans-serif; background-color: #0b0f19; }
+        body {
+            font-family: 'Noto Sans Lao', sans-serif;
+            background: radial-gradient(circle at 15% 0%, rgba(245,180,60,0.22) 0%, rgba(245,180,60,0) 50%),
+                        radial-gradient(circle at 85% 10%, rgba(59,130,246,0.20) 0%, rgba(59,130,246,0) 50%),
+                        radial-gradient(circle at 50% 100%, rgba(16,185,129,0.16) 0%, rgba(16,185,129,0) 55%),
+                        linear-gradient(160deg, #18233b 0%, #1c2c4a 35%, #15203a 65%, #101a30 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(212,175,55,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(212,175,55,0.06) 1px, transparent 1px);
+            background-size: 38px 38px;
+            pointer-events: none;
+            z-index: 0;
+            mask-image: radial-gradient(circle at 50% 30%, rgba(0,0,0,0.6) 0%, transparent 70%);
+        }
+        body > * { position: relative; z-index: 1; }
         .chip-active { transform: scale(1.15); border-color: #f59e0b !important; box-shadow: 0 0 12px #f59e0b; }
         
         .classic-board {
@@ -344,7 +366,7 @@
         <!-- ສະຫຼຸບ -->
         <div class="grid grid-cols-3 gap-2 mb-3 flex-shrink-0">
             <div class="bg-slate-950 rounded-xl p-2.5 text-center border border-slate-800">
-                <p class="text-[10px] text-slate-400 mb-1">ເງິນຄົງເຫຼືອ</p>
+                <p class="text-[10px] text-slate-400 mb-1">ເຄຣດິດຄົງເຫຼືອ</p>
                 <p id="mf-credit" class="text-amber-400 font-bold font-mono text-sm">0</p>
             </div>
             <div class="bg-slate-950 rounded-xl p-2.5 text-center border border-emerald-800/40">
@@ -422,7 +444,7 @@
             <p class="text-[10px] text-slate-500">ຫຼັງໂອນ ແລະ ອັບໂຫຼດຫຼັກຖານແລ້ວ ກົດແຈ້ງໂອນ</p>
             <div class="grid grid-cols-2 gap-2 pt-1">
                 <button onclick="backDepositStep1()" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl text-xs font-bold text-white transition">← ກັບຄືນ</button>
-                <button onclick="confirmDepositRequest()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-lg">✅ ແຈ້ງໂອນແລ້ວ</button>
+                <button id="confirm-deposit-btn" onclick="confirmDepositRequest()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">✅ ແຈ້ງໂອນແລ້ວ</button>
             </div>
         </div>
     </div>
@@ -435,7 +457,7 @@
             <h3 class="text-base font-bold text-red-400 flex items-center"><i class="fas fa-arrow-alt-circle-up mr-2"></i>ຖອນເງິນ</h3>
             <button onclick="closeWithdrawModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
         </div>
-        <p class="text-xs text-slate-400 mb-1">ເງິນຄົງເຫຼືອ: <span id="withdraw-credit-show" class="text-amber-400 font-bold font-mono">0 ກີບ</span></p>
+        <p class="text-xs text-slate-400 mb-1">ເຄຣດິດຄົງເຫຼືອ: <span id="withdraw-credit-show" class="text-amber-400 font-bold font-mono">0 ກີບ</span></p>
         <p class="text-xs text-slate-400 mb-3">ກຳນົດຈຳນວນເງິນທີ່ຕ້ອງການຖອນ</p>
         <div class="grid grid-cols-3 gap-2 mb-3">
             <button onclick="setWithdrawAmount(50000)" class="bg-slate-800 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">50,000</button>
@@ -535,7 +557,7 @@
 </div>
 
 <div id="game-page" class="hidden flex-1 flex flex-col">
-    <header class="bg-slate-900/80 backdrop-blur p-4 flex justify-between items-center border-b border-slate-800/60 sticky top-0 z-50">
+    <header class="bg-slate-900/45 backdrop-blur p-4 flex justify-between items-center border-b border-amber-500/15 sticky top-0 z-50 shadow-lg shadow-black/40">
         <div class="flex items-center space-x-2">
             <span class="text-xl font-bold bg-gradient-to-r bg-clip-text text-transparent from-blue-400 to-indigo-400">ນ້ຳເຕົ້າປູປາ</span>
             <button id="role-badge" onclick="openMyFinanceModal()" class="bg-blue-500/20 text-blue-300 text-[10px] px-2.5 py-1 rounded-lg font-bold border border-blue-500/30 hover:bg-blue-500/30 transition flex items-center space-x-1"><i class="fas fa-wallet text-[9px]"></i><span>ປະຫວັດການເງິນ</span></button>
@@ -632,7 +654,7 @@
 
         <!-- MOP SECTION -->
         <div id="mop-game-section" class="space-y-4">
-        <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-800/80 flex justify-between items-center">
+        <div class="bg-slate-900/40 p-4 rounded-2xl border border-amber-500/15 flex justify-between items-center backdrop-blur-sm">
             <div>
                 <span class="text-xs text-slate-400 block mb-0.5">ສະຖານະຮອບນີ້</span>
                 <span id="game-status-text" class="text-sm font-bold text-emerald-400">ກຳລັງເປີດຮັບເດີມພັນ</span>
@@ -677,7 +699,7 @@
             <button onclick="selectChip(200000)" id="chip-200000" class="w-[58px] h-11 rounded-full bg-red-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">2ແສນ</button>
         </div>
 
-        <div class="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+        <div class="bg-slate-900/50 p-4 rounded-2xl border border-amber-500/10 space-y-3 backdrop-blur-sm">
             <div class="flex justify-between items-center pb-1.5 border-b border-slate-800/60">
                 <span class="text-xs font-bold text-amber-400 flex items-center"><i class="fas fa-history mr-1.5"></i> ປະຫວັດຜົນອອກຍ້ອນຫຼັງ</span>
                 <span class="text-[10px] text-slate-400 font-mono">ຫຼ້າສຸດ 2 ຮອບ: <span id="quick-hist" class="text-white ml-1 font-sans">...</span></span>
@@ -705,7 +727,7 @@
 
         <!-- BACCARAT SECTION -->
         <div id="baccarat-game-section" class="space-y-4 hidden">
-            <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-800/80 flex justify-between items-center">
+            <div class="bg-slate-900/40 p-4 rounded-2xl border border-amber-500/15 flex justify-between items-center backdrop-blur-sm">
                 <div><span class="text-xs text-slate-400 block mb-0.5">ສະຖານະຮອບນີ້ (ບາຄາລາ)</span><span id="bc-status-text" class="text-sm font-bold text-emerald-400">ກຳລັງເປີດຮັບເດີມພັນ</span></div>
                 <div id="bc-timer-box" class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono font-bold text-xl text-emerald-400 shadow-inner">20</div>
             </div>
@@ -731,7 +753,7 @@
                 <button onclick="bcSelectChip(100000)" id="bc-chip-100000" class="w-[58px] h-11 rounded-full bg-purple-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">1ແສນ</button>
                 <button onclick="bcSelectChip(200000)" id="bc-chip-200000" class="w-[58px] h-11 rounded-full bg-red-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">2ແສນ</button>
             </div>
-            <div class="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+            <div class="bg-slate-900/50 p-4 rounded-2xl border border-amber-500/10 space-y-3 backdrop-blur-sm">
                 <div class="flex justify-between items-center pb-1.5 border-b border-slate-800/60"><span class="text-xs font-bold text-amber-400 flex items-center"><i class="fas fa-history mr-1.5"></i> ປະຫວັດຜົນອອກ (Bead Road)</span><span id="bc-stats-text" class="text-[10px] text-slate-400 font-mono">ຜູ້ເລ່ນ 0 | ເຈົ້າມື 0 | ເສມີ 0</span></div>
                 <div id="bc-bead-road" class="grid grid-cols-[repeat(auto-fill,18px)] gap-1 bg-slate-950/60 p-2 rounded-xl border border-slate-800/40 max-h-32 overflow-y-auto"></div>
                 <div class="flex items-center space-x-3 text-[10px] text-slate-400 font-mono pt-1">
@@ -745,7 +767,7 @@
     </div>
 </div>
 
-<footer class="p-4 text-center text-[10px] text-slate-600">&copy; 2026 ນ້ຳເຕົ້າປູປາ ເວັບຕົ້ງ999</footer>
+<footer class="p-4 text-center text-[10px] text-slate-500 border-t border-amber-500/10 mt-4">&copy; 2026 ນ້ຳເຕົ້າປູປາ ເວັບຕົ້ງ999</footer>
 
 <script>
     const soundBeep = new Audio('https://get-the-sound.com/wp-content/uploads/2020/11/Sound-Effect-Beep.mp3'); 
@@ -815,7 +837,7 @@
                 if (prevStatus && prevStatus === 'pending' && newStatus !== 'pending') {
                     if (newStatus === 'approved') {
                         showToast(
-                            `💰 ຄຳຂໍຝາກ ${(req.amount||0).toLocaleString()} ກີບ ໄດ້ຮັບການ ✅ ອະນຸມັດແລ້ວ! ເງິນຂອງທ່ານຖືກເຕີມເຂົ້າແລ້ວ`,
+                            `💰 ຄຳຂໍຝາກ ${(req.amount||0).toLocaleString()} ກີບ ໄດ້ຮັບການ ✅ ອະນຸມັດແລ້ວ! ເຄຣດິດຂອງທ່ານຖືກເຕີມເຂົ້າແລ້ວ`,
                             'success', 8000
                         );
                     } else if (newStatus === 'rejected') {
@@ -848,7 +870,7 @@
                         );
                     } else if (newStatus === 'rejected') {
                         showToast(
-                            `❌ ຄຳຂໍຖອນ ${(req.amount||0).toLocaleString()} ກີບ ຖືກປະຕິເສດ ກະລຸນາຕິດຕໍ່ admin ເບີແອັບ 2094357757`,
+                            `❌ ຄຳຂໍຖອນ ${(req.amount||0).toLocaleString()} ກີບ ຖືກປະຕິເສດ ກະລຸນາຕິດຕໍ່ admin`,
                             'error', 8000
                         );
                     }
@@ -872,6 +894,9 @@
         document.getElementById('deposit-proof-preview').classList.add('hidden');
         document.getElementById('deposit-proof-placeholder').classList.remove('hidden');
         document.getElementById('deposit-proof-upload-zone').classList.remove('has-image');
+        /* ✨ ເປີດໃຊ້ປຸ່ມ ແຈ້ງໂອນແລ້ວ ໃໝ່ທຸກຄັ້ງທີ່ເປີດ modal */
+        const confirmBtn = document.getElementById('confirm-deposit-btn');
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerText = '✅ ແຈ້ງໂອນແລ້ວ'; }
         document.getElementById('deposit-modal').classList.remove('hidden');
     }
 
@@ -925,9 +950,12 @@
 
     /* ✨ ອັບເດດ: ສົ່ງ proofImage ນຳ */
     function confirmDepositRequest() {
+        const confirmBtn = document.getElementById('confirm-deposit-btn');
         const amt = parseFloat(document.getElementById('deposit-amount-input').value);
         if (!amt || amt <= 0) return;
         if (!depositProofImageBase64) return showAlert('ກະລຸນາອັບໂຫຼດຫຼັກຖານການໂອນກ່ອນ!', '⚠️');
+        /* ✨ ປິດປຸ່ມທັນທີ ກັນກົດຊໍ້າຮີບໆ */
+        if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.innerText = '⏳ ກຳລັງສົ່ງ...'; }
         const d = new Date();
         const timeStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
         const reqId = Date.now().toString();
@@ -942,7 +970,11 @@
             /* pre-load known status ເພື່ອ listener ຮຽກຖືກ */
             _knownDepositStatuses[reqId] = 'pending';
             closeDepositModal();
-            showAlert('✅ ແຈ້ງຝາກສຳເລັດ! ກະລຸນາລໍຖ້າ admin ອະນຸມັດ', '💰');
+            showAlert('✅ ແຈ້ງຝາກສຳເລັດ! ກະລຸນາລໍຖ້າ admin ຢືນຢັນ', '💰');
+        }).catch(() => {
+            /* ✨ ຖ້າສົ່ງບໍ່ສຳເລັດ ເປີດໃຊ້ປຸ່ມຄືນໃຫ້ລູກຄ້າລອງໃໝ່ */
+            if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerText = '✅ ແຈ້ງໂອນແລ້ວ'; }
+            showAlert('ເກີດຂໍ້ຜິດພາດໃນການເຊື່ອມຕໍ່! ກະລຸນາລອງໃໝ່', '❌');
         });
     }
 
@@ -988,7 +1020,7 @@
         if (!amt || amt <= 0) return showAlert('ກະລຸນາໃສ່ຈຳນວນເງິນ!', '⚠️');
         if (!withdrawQRImageBase64) return showAlert('ກະລຸນາອັບໂຫຼດ QR ຮັບເງິນຂອງທ່ານ!', '⚠️');
         if (currentActiveUser.role !== 'admin' && (currentActiveUser.credit || 0) < amt) {
-            return showAlert('ເງິນບໍ່ພໍ!', '❌');
+            return showAlert('ເຄຣດິດບໍ່ພໍ!', '❌');
         }
         const d = new Date();
         const timeStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -1003,7 +1035,7 @@
         }).then(() => {
             _knownWithdrawStatuses[reqId] = 'pending';
             closeWithdrawModal();
-            showAlert('✅ ສົ່ງຄຳຂໍຖອນແລ້ວ! ກະລຸນາລໍຖ້າ admin ອະນຸມັດ', '💸');
+            showAlert('✅ ສົ່ງຄຳຂໍຖອນແລ້ວ! ກະລຸນາລໍຖ້າ admin ຢືນຢັນ', '💸');
         });
     }
 
@@ -1147,7 +1179,7 @@
                     });
                 } else {
                     if ((uData.credit || 0) < req.amount) {
-                        showAlert('ເງິນລູກຄ້າບໍ່ພໍ!', '❌');
+                        showAlert('ເຄຣດິດລູກຄ້າບໍ່ພໍ!', '❌');
                         return;
                     }
                     window.fbUpdate(window.fbRef(window.fbDB, 'users/' + req.username), {
