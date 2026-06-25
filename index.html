@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ເວັບການພະນັນອ່ອນໄລ໌ອັນດັບ 1 ໄໜ່ລາວ</title>
+    <title>ເວັບພະນັນອ່ອນໄລ໌ອັນດັບ 1 ໃນປະເທດລາວ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -107,7 +107,6 @@
         }
         .rolling { animation: rollingDice 0.5s linear infinite; }
 
-        /* ========== ສ່ວນທີ່ເພີ່ມໃໝ່: Online pulse animation ========== */
         @keyframes onlinePulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
             50% { box-shadow: 0 0 0 4px rgba(34,197,94,0); }
@@ -122,7 +121,6 @@
             border-radius: 50%; display: inline-block;
         }
 
-        /* ========== ✨ ສ່ວນທີ່ເພີ່ມໃໝ່ #2: ບາຄາລາ (Baccarat) ========== */
         .bc-table {
             background: radial-gradient(ellipse at center, #0d5c3f 0%, #073a28 60%, #04241a 100%);
             border: 6px solid #d4af37;
@@ -166,9 +164,46 @@
         .bc-bead-player { background: #2563eb; }
         .bc-bead-banker { background: #dc2626; }
         .bc-bead-tie { background: #16a34a; }
+
+        .upload-zone {
+            border: 2px dashed #4b5563;
+            transition: all 0.2s ease;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .upload-zone:hover {
+            border-color: #f59e0b;
+            background: rgba(245,158,11,0.05);
+        }
+        .upload-zone.has-image {
+            border-color: #10b981;
+            background: rgba(16,185,129,0.05);
+        }
+        @keyframes fadeInModal {
+            from { opacity: 0; transform: scale(0.92); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .modal-animate { animation: fadeInModal 0.2s ease; }
+        .request-card-deposit { border-left: 3px solid #10b981; }
+        .request-card-withdraw { border-left: 3px solid #ef4444; }
+
+        /* ✨ ແຈ້ງເຕືອນ realtime toast */
+        @keyframes slideInToast {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideOutToast {
+            from { opacity: 1; transform: translateY(0) scale(1); }
+            to   { opacity: 0; transform: translateY(-20px) scale(0.95); }
+        }
+        .toast-in  { animation: slideInToast 0.3s ease forwards; }
+        .toast-out { animation: slideOutToast 0.3s ease forwards; }
     </style>
 </head>
 <body class="text-white min-h-screen flex flex-col justify-between">
+
+<!-- ✨ Toast container ສຳລັບແຈ້ງເຕືອນ realtime -->
+<div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[2000] flex flex-col items-center space-y-2 pointer-events-none" style="min-width:280px;max-width:340px;"></div>
 
 <script>
     let currentActiveUser = null;
@@ -183,9 +218,16 @@
     let isProcessingResult = false; 
     let lastProcessedRoundId = null; 
     let lastSpokenTime = null;
-    /* ========== ຕົວແປໃໝ່ ========== */
-    let betHistoryAllUsers = {};   /* ເກັບປະຫວັດການແທງທຸກຄົນ */
-    let currentViewBetUser = null; /* ຊື່ລູກຄ້າທີ່ກຳລັງດູປະຫວັດ */
+    let betHistoryAllUsers = {};
+    let currentViewBetUser = null;
+
+    let depositWithdrawRequests = {};
+    let depositQRImageBase64 = null;
+    let withdrawQRImageBase64 = null;
+    /* ✨ ໃໝ່: ຫຼັກຖານຝາກ */
+    let depositProofImageBase64 = null;
+    /* ✨ ຕິດຕາມ status request ຂອງລູກຄ້າ */
+    let userRequestListenerActive = false;
 </script>
 
 <script type="module">
@@ -217,7 +259,6 @@
     window.fbRemove = remove;
     window.fbRunTransaction = runTransaction;
     window.fbServerTimestamp = serverTimestamp;
-    /* ========== ເພີ່ມ onDisconnect ========== */
     window.fbOnDisconnect = onDisconnect;
     
     console.log("🚀 Firebase ເເຊື່ອມຕໍ່ສຳເລັດແລ້ວ!");
@@ -227,10 +268,7 @@
     }
 </script>
 
-<!-- =========================================================== -->
-<!-- MODALS ເດີມ (ບໍ່ປ່ຽນແປງ)                                    -->
-<!-- =========================================================== -->
-
+<!-- MODALS ເດີມ -->
 <div id="custom-alert" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[999] flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl transform scale-95 transition-all">
         <div id="alert-icon" class="text-4xl mb-3">🔔</div>
@@ -246,30 +284,12 @@
             <button onclick="closeUserDetailModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
         </div>
         <div class="space-y-3 text-sm">
-            <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ຊື່ຜູ້ໃຊ້:</span>
-                <span id="md-username" class="font-bold text-slate-200">...</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ເຄຣດິດຄົງເຫຼືອ:</span>
-                <span id="md-credit" class="font-bold text-amber-400 font-mono">0 ກີບ</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ຍອດເຕີມທັງໝົດ:</span>
-                <span id="md-topup-amount" class="font-bold text-emerald-400 font-mono">0 ກີບ</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ຈຳນວນຄັ້ງທີ່ເຕີມ:</span>
-                <span id="md-topup-count" class="font-bold text-slate-300 font-mono">0 ຄັ້ງ</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ຍອດຖອນທັງໝົດ:</span>
-                <span id="md-withdraw-amount" class="font-bold text-red-400 font-mono">0 ກີບ</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-800/40">
-                <span class="text-slate-400">ຈຳນວນຄັ້ງທີ່ຖອນ:</span>
-                <span id="md-withdraw-count" class="font-bold text-slate-300 font-mono">0 ຄັ້ງ</span>
-            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/40"><span class="text-slate-400">ຊື່ຜູ້ໃຊ້:</span><span id="md-username" class="font-bold text-slate-200">...</span></div>
+            <div class="flex justify-between py-1 border-b border-slate-800/40"><span class="text-slate-400">ເຄຣດິດຄົງເຫຼືອ:</span><span id="md-credit" class="font-bold text-amber-400 font-mono">0 ກີບ</span></div>
+            <div class="flex justify-between py-1 border-b border-slate-800/40"><span class="text-slate-400">ຍອດເຕີມທັງໝົດ:</span><span id="md-topup-amount" class="font-bold text-emerald-400 font-mono">0 ກີບ</span></div>
+            <div class="flex justify-between py-1 border-b border-slate-800/40"><span class="text-slate-400">ຈຳນວນຄັ້ງທີ່ເຕີມ:</span><span id="md-topup-count" class="font-bold text-slate-300 font-mono">0 ຄັ້ງ</span></div>
+            <div class="flex justify-between py-1 border-b border-slate-800/40"><span class="text-slate-400">ຍອດຖອນທັງໝົດ:</span><span id="md-withdraw-amount" class="font-bold text-red-400 font-mono">0 ກີບ</span></div>
+            <div class="flex justify-between py-1 border-b border-slate-800/40"><span class="text-slate-400">ຈຳນວນຄັ້ງທີ່ຖອນ:</span><span id="md-withdraw-count" class="font-bold text-slate-300 font-mono">0 ຄັ້ງ</span></div>
         </div>
         <button onclick="closeUserDetailModal()" class="w-full bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all py-2.5 rounded-xl text-xs font-bold text-white mt-5">ກັບຄືນ</button>
     </div>
@@ -284,42 +304,28 @@
         <div class="space-y-4 text-sm">
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
                 <span class="text-xs font-bold text-emerald-400 flex items-center"><i class="fas fa-arrow-alt-circle-down mr-1.5"></i> ຂໍ້ມູນການເຕີມເຄຣດິດ</span>
-                <div class="flex justify-between text-xs pt-1">
-                    <span class="text-slate-400">ວັນທີເຕີມຫຼ້າສຸດ:</span>
-                    <span id="cust-topup-date" class="font-bold text-slate-200 font-mono">-</span>
-                </div>
+                <div class="flex justify-between text-xs pt-1"><span class="text-slate-400">ວັນທີເຕີມຫຼ້າສຸດ:</span><span id="cust-topup-date" class="font-bold text-slate-200 font-mono">-</span></div>
             </div>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
                 <span class="text-xs font-bold text-red-400 flex items-center"><i class="fas fa-arrow-alt-circle-up mr-1.5"></i> 👑 ຂໍ້ມູນການຖອນເຄຣດິດ</span>
-                <div class="flex justify-between text-xs pt-1">
-                    <span class="text-slate-400">ວັນທີຖອນຫຼ້າສຸດ:</span>
-                    <span id="cust-withdraw-date" class="font-bold text-slate-200 font-mono">-</span>
-                </div>
+                <div class="flex justify-between text-xs pt-1"><span class="text-slate-400">ວັນທີຖອນຫຼ້າສຸດ:</span><span id="cust-withdraw-date" class="font-bold text-slate-200 font-mono">-</span></div>
             </div>
         </div>
         <button onclick="closeCustomerSettingsModal()" class="w-full bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all py-2.5 rounded-xl text-xs font-bold text-white mt-5">ກັບຄືນໜ້າເກມ</button>
     </div>
 </div>
 
-<!-- =========================================================== -->
-<!-- ✨ MODAL ໃໝ່: ປະຫວັດການວາງເດີມພັນຂອງລູກຄ້າ (ສຳລັບແອດມິນ)  -->
-<!-- =========================================================== -->
 <div id="bet-history-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-[999] flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-purple-500/40 rounded-2xl p-5 w-full max-w-sm shadow-2xl">
         <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
-            <h3 class="text-sm font-bold text-purple-400 flex items-center">
-                <i class="fas fa-history mr-2"></i>
-                ປະຫວັດການວາງເດີມພັນ: <span id="bh-username" class="text-white ml-1.5">...</span>
-            </h3>
+            <h3 class="text-sm font-bold text-purple-400 flex items-center"><i class="fas fa-history mr-2"></i>ປະຫວັດການວາງເດີມພັນ: <span id="bh-username" class="text-white ml-1.5">...</span></h3>
             <button onclick="closeBetHistoryModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
         </div>
-        <!-- ສະຖານະ Online/Offline -->
         <div class="flex items-center space-x-2 mb-3 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
             <span id="bh-status-dot" class="offline-dot"></span>
             <span id="bh-status-text" class="text-xs font-bold text-slate-400">ກຳລັງກວດສອບ...</span>
             <span class="ml-auto text-xs text-slate-500" id="bh-credit-display">0 ກີບ</span>
         </div>
-        <!-- ລາຍການແທງ 10 ຮອບຫຼ້າສຸດ -->
         <div class="max-h-72 overflow-y-auto space-y-2" id="bh-list">
             <div class="text-center text-slate-500 text-xs py-6">⏳ ກຳລັງໂຫຼດ...</div>
         </div>
@@ -327,10 +333,162 @@
     </div>
 </div>
 
-<!-- =========================================================== -->
-<!-- ໜ້າ Login / Register / Game (ບໍ່ປ່ຽນ HTML ເດີມ)             -->
-<!-- =========================================================== -->
+<!-- ✨ MODAL ປະຫວັດການເງິນ (ລູກຄ້າ) -->
+<div id="my-finance-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-blue-500/40 rounded-2xl p-5 w-full max-w-sm shadow-2xl modal-animate max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-3 flex-shrink-0">
+            <h3 class="text-base font-bold text-blue-400 flex items-center"><i class="fas fa-wallet mr-2"></i>ປະຫວັດການເງິນ</h3>
+            <button onclick="closeMyFinanceModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
+        </div>
 
+        <!-- ສະຫຼຸບ -->
+        <div class="grid grid-cols-3 gap-2 mb-3 flex-shrink-0">
+            <div class="bg-slate-950 rounded-xl p-2.5 text-center border border-slate-800">
+                <p class="text-[10px] text-slate-400 mb-1">ເງິນຄົງເຫຼືອ</p>
+                <p id="mf-credit" class="text-amber-400 font-bold font-mono text-sm">0</p>
+            </div>
+            <div class="bg-slate-950 rounded-xl p-2.5 text-center border border-emerald-800/40">
+                <p class="text-[10px] text-emerald-400 mb-1">ເຕີມທັງໝົດ</p>
+                <p id="mf-topup-total" class="text-emerald-400 font-bold font-mono text-sm">0</p>
+            </div>
+            <div class="bg-slate-950 rounded-xl p-2.5 text-center border border-red-800/40">
+                <p class="text-[10px] text-red-400 mb-1">ຖອນທັງໝົດ</p>
+                <p id="mf-withdraw-total" class="text-red-400 font-bold font-mono text-sm">0</p>
+            </div>
+        </div>
+
+        <!-- ແຖບ Deposit / Withdraw -->
+        <div class="grid grid-cols-2 gap-2 mb-3 flex-shrink-0">
+            <button id="mf-tab-deposit" onclick="switchMyFinanceTab('deposit')" class="bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition">💰 ຝາກ</button>
+            <button id="mf-tab-withdraw" onclick="switchMyFinanceTab('withdraw')" class="bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition">💸 ຖອນ</button>
+        </div>
+
+        <!-- ລາຍການ -->
+        <div class="overflow-y-auto flex-1 space-y-2" id="mf-list">
+            <div class="text-center text-slate-500 text-xs py-8">⏳ ກຳລັງໂຫຼດ...</div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mt-3 flex-shrink-0">
+            <button onclick="openDepositModal(); closeMyFinanceModal();" class="bg-emerald-600 hover:bg-emerald-500 py-2.5 rounded-xl text-xs font-bold text-white transition">+ ຝາກເງິນ</button>
+            <button onclick="openWithdrawModal(); closeMyFinanceModal();" class="bg-red-600 hover:bg-red-500 py-2.5 rounded-xl text-xs font-bold text-white transition">- ຖອນເງິນ</button>
+        </div>
+        <button onclick="closeMyFinanceModal()" class="w-full bg-slate-800 hover:bg-slate-700 py-2 rounded-xl text-xs font-bold text-white mt-2 flex-shrink-0">ປິດ</button>
+    </div>
+</div>
+
+<!-- ✨ MODAL ຝາກເງິນ (ລູກຄ້າ) — ເພີ່ມ upload ຫຼັກຖານໃນ step 2 -->
+<div id="deposit-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl p-5 w-full max-w-sm shadow-2xl modal-animate">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-4">
+            <h3 class="text-base font-bold text-emerald-400 flex items-center"><i class="fas fa-arrow-alt-circle-down mr-2"></i>ຝາກເງິນ</h3>
+            <button onclick="closeDepositModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
+        </div>
+
+        <!-- Step 1: ໃສ່ຈຳນວນ -->
+        <div id="deposit-step1">
+            <p class="text-xs text-slate-400 mb-3">ກຳນົດຈຳນວນເງິນທີ່ຕ້ອງການຝາກ</p>
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                <button onclick="setDepositAmount(50000)" class="bg-slate-800 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">50,000</button>
+                <button onclick="setDepositAmount(100000)" class="bg-slate-800 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">100,000</button>
+                <button onclick="setDepositAmount(200000)" class="bg-slate-800 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">200,000</button>
+                <button onclick="setDepositAmount(500000)" class="bg-slate-800 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">500,000</button>
+                <button onclick="setDepositAmount(1000000)" class="bg-slate-800 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">1,000,000</button>
+                <button onclick="setDepositAmount(2000000)" class="bg-slate-800 hover:bg-emerald-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">2,000,000</button>
+            </div>
+            <input type="number" id="deposit-amount-input" placeholder="ຫຼື ໃສ່ຈຳນວນເອງ (ກີບ)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono mb-4">
+            <button onclick="goDepositStep2()" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition py-3 rounded-xl font-bold text-white shadow-lg">ຕໍ່ໄປ →</button>
+        </div>
+
+        <!-- Step 2: ສະແດງ QR + ✨ ອັບໂຫຼດຫຼັກຖານ -->
+        <div id="deposit-step2" class="hidden text-center space-y-3">
+            <p class="text-xs text-slate-400">ສະແກນ QR ເພື່ອໂອນເງິນ <span id="deposit-amount-show" class="text-emerald-400 font-bold font-mono">0 ກີບ</span></p>
+            <div class="flex justify-center">
+                <img id="deposit-qr-img" src="" alt="QR Code" class="w-44 h-44 rounded-xl border-2 border-emerald-500/50 object-contain bg-white p-2">
+            </div>
+
+            <!-- ✨ ໃໝ່: ອັບໂຫຼດຫຼັກຖານ -->
+            <div class="text-left">
+                <p class="text-[11px] text-amber-400 font-bold mb-1.5"><i class="fas fa-camera mr-1"></i> ອັບໂຫຼດຫຼັກຖານການໂອນ (ຕ້ອງມີ)</p>
+                <div id="deposit-proof-upload-zone" class="upload-zone p-3 text-center" onclick="document.getElementById('deposit-proof-file').click()">
+                    <div id="deposit-proof-placeholder">
+                        <i class="fas fa-image text-2xl text-slate-500 mb-1"></i>
+                        <p class="text-xs text-slate-500">ກົດເພື່ອອັບໂຫຼດ ສະລິ໊ບ / ໜ້າຈໍ</p>
+                    </div>
+                    <img id="deposit-proof-preview" src="" alt="" class="hidden w-28 h-28 mx-auto rounded-lg object-contain border border-emerald-500/50">
+                    <input type="file" id="deposit-proof-file" accept="image/*" class="hidden" onchange="previewDepositProof(event)">
+                </div>
+            </div>
+
+            <p class="text-[10px] text-slate-500">ຫຼັງໂອນ ແລະ ອັບໂຫຼດຫຼັກຖານແລ້ວ ກົດແຈ້ງໂອນ</p>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="backDepositStep1()" class="bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl text-xs font-bold text-white transition">← ກັບຄືນ</button>
+                <button onclick="confirmDepositRequest()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-lg">✅ ແຈ້ງໂອນແລ້ວ</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ຖອນເງິນ (ລູກຄ້າ) -->
+<div id="withdraw-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-red-500/40 rounded-2xl p-5 w-full max-w-sm shadow-2xl modal-animate">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-4">
+            <h3 class="text-base font-bold text-red-400 flex items-center"><i class="fas fa-arrow-alt-circle-up mr-2"></i>ຖອນເງິນ</h3>
+            <button onclick="closeWithdrawModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
+        </div>
+        <p class="text-xs text-slate-400 mb-1">ເງິນຄົງເຫຼືອ: <span id="withdraw-credit-show" class="text-amber-400 font-bold font-mono">0 ກີບ</span></p>
+        <p class="text-xs text-slate-400 mb-3">ກຳນົດຈຳນວນເງິນທີ່ຕ້ອງການຖອນ</p>
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <button onclick="setWithdrawAmount(50000)" class="bg-slate-800 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">50,000</button>
+            <button onclick="setWithdrawAmount(100000)" class="bg-slate-800 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">100,000</button>
+            <button onclick="setWithdrawAmount(200000)" class="bg-slate-800 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">200,000</button>
+            <button onclick="setWithdrawAmount(500000)" class="bg-slate-800 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">500,000</button>
+            <button onclick="setWithdrawAmount(1000000)" class="bg-slate-800 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">1,000,000</button>
+            <button onclick="setWithdrawAmount(2000000)" class="bg-slate-800 hover:bg-red-700 text-white py-2 rounded-xl text-xs font-bold transition border border-slate-700">2,000,000</button>
+        </div>
+        <input type="number" id="withdraw-amount-input" placeholder="ຫຼື ໃສ່ຈຳນວນເອງ (ກີບ)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 font-mono mb-3">
+        <p class="text-xs text-slate-400 mb-2">ອັບໂຫຼດ QR ຂອງທ່ານ (ເພື່ອຮັບເງິນ)</p>
+        <div id="withdraw-upload-zone" class="upload-zone p-4 text-center mb-4" onclick="document.getElementById('withdraw-qr-file').click()">
+            <div id="withdraw-upload-placeholder">
+                <i class="fas fa-qrcode text-2xl text-slate-500 mb-1"></i>
+                <p class="text-xs text-slate-500">ກົດເພື່ອອັບໂຫຼດ QR ຮັບເງິນ</p>
+            </div>
+            <img id="withdraw-qr-preview" src="" alt="" class="hidden w-32 h-32 mx-auto rounded-lg object-contain">
+            <input type="file" id="withdraw-qr-file" accept="image/*" class="hidden" onchange="previewWithdrawQR(event)">
+        </div>
+        <button onclick="confirmWithdrawRequest()" class="w-full bg-red-600 hover:bg-red-500 active:scale-95 transition py-3 rounded-xl font-bold text-white shadow-lg">📤 ສົ່ງຄຳຂໍຖອນ</button>
+    </div>
+</div>
+
+<!-- MODAL ຄຳຂໍຝາກ/ຖອນ Admin -->
+<div id="admin-requests-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-amber-500/40 rounded-2xl p-5 w-full max-w-sm shadow-2xl modal-animate max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-3 flex-shrink-0">
+            <h3 class="text-base font-bold text-amber-400 flex items-center"><i class="fas fa-inbox mr-2"></i>ຄຳຂໍຝາກ/ຖອນ</h3>
+            <button onclick="closeAdminRequestsModal()" class="text-slate-400 hover:text-white text-sm bg-slate-800 px-2 py-0.5 rounded">ປິດ X</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-3 flex-shrink-0">
+            <button id="req-tab-deposit" onclick="switchReqTab('deposit')" class="bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition">💰 ຝາກ</button>
+            <button id="req-tab-withdraw" onclick="switchReqTab('withdraw')" class="bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition">💸 ຖອນ</button>
+        </div>
+        <div id="admin-set-qr-zone" class="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-3 flex-shrink-0">
+            <p class="text-[11px] text-amber-400 font-bold mb-2"><i class="fas fa-qrcode mr-1"></i> QR ຮັບເງິນຂອງລະບົບ (ສະແດງໃຫ້ລູກຄ້າ)</p>
+            <div class="flex items-center gap-3">
+                <img id="admin-system-qr-preview" src="" alt="QR" class="w-16 h-16 rounded-lg border border-slate-700 object-contain bg-white p-1 hidden">
+                <div id="admin-system-qr-placeholder" class="w-16 h-16 rounded-lg border border-slate-700 bg-slate-900 flex items-center justify-center text-slate-500 text-xs">ຍັງບໍ່ມີ</div>
+                <button onclick="document.getElementById('admin-system-qr-file').click()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition">
+                    <i class="fas fa-upload mr-1"></i>ອັບໂຫຼດ QR
+                </button>
+                <input type="file" id="admin-system-qr-file" accept="image/*" class="hidden" onchange="uploadSystemQR(event)">
+            </div>
+        </div>
+        <div class="overflow-y-auto flex-1 space-y-2" id="admin-requests-list">
+            <div class="text-center text-slate-500 text-xs py-8">⏳ ກຳລັງໂຫຼດ...</div>
+        </div>
+        <button onclick="closeAdminRequestsModal()" class="w-full bg-slate-800 hover:bg-slate-700 py-2.5 rounded-xl text-xs font-bold text-white mt-3 flex-shrink-0">ປິດ</button>
+    </div>
+</div>
+
+<!-- ໜ້າ Login / Register / Game -->
 <div id="login-page" class="flex-1 flex items-center justify-center p-4">
     <div class="bg-slate-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-800">
         <h2 class="text-2xl font-bold text-center text-blue-400 mb-6"><i class="fas fa-sign-in-alt mr-2"></i>ເຂົ້າສູ່ລະບົບ</h2>
@@ -380,20 +538,29 @@
     <header class="bg-slate-900/80 backdrop-blur p-4 flex justify-between items-center border-b border-slate-800/60 sticky top-0 z-50">
         <div class="flex items-center space-x-2">
             <span class="text-xl font-bold bg-gradient-to-r bg-clip-text text-transparent from-blue-400 to-indigo-400">ນ້ຳເຕົ້າປູປາ</span>
-            <span id="role-badge" class="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-bold border border-red-500/30">ລູກຄ້າ</span>
+            <button id="role-badge" onclick="openMyFinanceModal()" class="bg-blue-500/20 text-blue-300 text-[10px] px-2.5 py-1 rounded-lg font-bold border border-blue-500/30 hover:bg-blue-500/30 transition flex items-center space-x-1"><i class="fas fa-wallet text-[9px]"></i><span>ປະຫວັດການເງິນ</span></button>
             <button id="admin-toggle-btn" onclick="toggleAdminPanel()" class="hidden bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-bold px-2.5 py-1 rounded transition ml-2">ລະບົບຫຼັງບ້ານ</button>
         </div>
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+            <button id="deposit-btn" onclick="openDepositModal()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow flex items-center space-x-1">
+                <i class="fas fa-arrow-alt-circle-down text-xs"></i><span>ຝາກ</span>
+            </button>
+            <button id="withdraw-btn" onclick="openWithdrawModal()" class="bg-red-600 hover:bg-red-500 active:scale-95 transition text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow flex items-center space-x-1">
+                <i class="fas fa-arrow-alt-circle-up text-xs"></i><span>ຖອນ</span>
+            </button>
+            <button id="admin-inbox-btn" onclick="openAdminRequestsModal()" class="hidden bg-amber-500 hover:bg-amber-400 active:scale-95 transition text-slate-950 text-[11px] font-bold px-2.5 py-1.5 rounded-xl shadow relative">
+                <i class="fas fa-inbox"></i>
+                <span id="inbox-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+            </button>
             <div class="text-right">
                 <div class="text-xs text-slate-400" id="user-display-name">...</div>
                 <div class="text-amber-400 font-bold font-mono text-base" id="credit-display">0 ກີບ</div>
             </div>
-            <button onclick="openCustomerSettingsModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-400 w-8 h-8 rounded-xl flex items-center justify-center transition shadow-md border border-slate-700" title="ການຕັ້ງຄ່າ"><i class="fas fa-cog"></i></button>
+            <button onclick="openCustomerSettingsModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-400 w-8 h-8 rounded-xl flex items-center justify-center transition shadow-md border border-slate-700"><i class="fas fa-cog"></i></button>
             <button onclick="handleLogout()" class="text-slate-400 hover:text-red-400 transition ml-1"><i class="fas fa-sign-out-alt text-lg"></i></button>
         </div>
     </header>
 
-    <!-- ✨ TAB ສະຫຼັບເກມ -->
     <div class="max-w-md w-full mx-auto px-4 pt-4">
         <div class="grid grid-cols-2 gap-2 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800">
             <button id="tab-btn-mop" onclick="switchGameTab('mop')" class="bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm transition flex items-center justify-center space-x-1.5">
@@ -425,7 +592,6 @@
                 <p class="text-[10px] text-slate-400 italic mt-1" id="mode-desc-text">ໂໝດປົກກະຕິ: ລະບົບສຸ່ມຜົນແບບຍຸດຕິທຳ 100%</p>
             </div>
 
-            <!-- ✨ ເພີ່ມໃໝ່: ໂໝດຄວບຄຸມຜົນລວມ ສຳລັບບາຄາລາ -->
             <div class="bg-slate-950 p-3 rounded-xl border border-red-500/30 space-y-2">
                 <span class="text-xs font-bold text-red-400 flex items-center"><i class="fas fa-spade mr-1.5"></i> ໂໝດຄວບຄຸມຜົນລວມ (ບາຄາລາ)</span>
                 <div class="grid grid-cols-3 gap-2">
@@ -464,9 +630,7 @@
             </div>
         </div>
 
-        <!-- =========================================================== -->
-        <!-- ✨ SECTION: ນ້ຳເຕົ້າປູປາ (ເກມເດີມ)                           -->
-        <!-- =========================================================== -->
+        <!-- MOP SECTION -->
         <div id="mop-game-section" class="space-y-4">
         <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-800/80 flex justify-between items-center">
             <div>
@@ -482,72 +646,27 @@
                     <div class="w-8 h-4 bg-amber-300 rounded-full mx-auto -mt-2 border border-amber-500 shadow-md"></div>
                 </div>
                 <div class="flex space-x-4 z-10 pt-4">
-                    <div class="cube-container">
-                        <div id="cube-1" class="cube">
-                            <div class="cube-face face-front">🦀</div><div class="cube-face face-back">🐟</div><div class="cube-face face-top">🏮</div><div class="cube-face face-bottom">🐯</div><div class="cube-face face-left">🐓</div><div class="cube-face face-right">🦐</div>
-                        </div>
-                    </div>
-                    <div class="cube-container">
-                        <div id="cube-2" class="cube">
-                            <div class="cube-face face-front">🦀</div><div class="cube-face face-back">🐟</div><div class="cube-face face-top">🏮</div><div class="cube-face face-bottom">🐯</div><div class="cube-face face-left">🐓</div><div class="cube-face face-right">🦐</div>
-                        </div>
-                    </div>
-                    <div class="cube-container">
-                        <div id="cube-3" class="cube">
-                            <div class="cube-face face-front">🦀</div><div class="cube-face face-back">🐟</div><div class="cube-face face-top">🏮</div><div class="cube-face face-bottom">🐯</div><div class="cube-face face-left">🐓</div><div class="cube-face face-right">🦐</div>
-                        </div>
-                    </div>
+                    <div class="cube-container"><div id="cube-1" class="cube"><div class="cube-face face-front">🦀</div><div class="cube-face face-back">🐟</div><div class="cube-face face-top">🏮</div><div class="cube-face face-bottom">🐯</div><div class="cube-face face-left">🐓</div><div class="cube-face face-right">🦐</div></div></div>
+                    <div class="cube-container"><div id="cube-2" class="cube"><div class="cube-face face-front">🦀</div><div class="cube-face face-back">🐟</div><div class="cube-face face-top">🏮</div><div class="cube-face face-bottom">🐯</div><div class="cube-face face-left">🐓</div><div class="cube-face face-right">🦐</div></div></div>
+                    <div class="cube-container"><div id="cube-3" class="cube"><div class="cube-face face-front">🦀</div><div class="cube-face face-back">🐟</div><div class="cube-face face-top">🏮</div><div class="cube-face face-bottom">🐯</div><div class="cube-face face-left">🐓</div><div class="cube-face face-right">🦐</div></div></div>
                 </div>
             </div>
         </div>
 
         <div class="classic-board p-3 rounded-2xl grid grid-cols-3 gap-3">
-            <div onclick="placeBet('ປູ_ປາ')" class="split-bet-btn" style="top: 28%; left: 34.5%;">
-                <div id="bet-total-ປູ_ປາ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div>
-            </div>
-            <div onclick="placeBet('ປາ_ນ້ຳເຕົ້າ')" class="split-bet-btn" style="top: 28%; left: 65.5%;">
-                <div id="bet-total-ປາ_ນ້ຳເຕົ້າ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div>
-            </div>
-            <div onclick="placeBet('ເສືອ_ໄກ່')" class="split-bet-btn" style="top: 72%; left: 34.5%;">
-                <div id="bet-total-ເສືອ_ໄກ່" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div>
-            </div>
-            <div onclick="placeBet('ໄກ່_ກຸ້ງ')" class="split-bet-btn" style="top: 72%; left: 65.5%;">
-                <div id="bet-total-ໄກ່_ກຸ້ງ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div>
-            </div>
-            <div onclick="placeBet('ປູ_ເສືອ')" class="split-bet-btn" style="top: 50%; left: 18%;">
-                <div id="bet-total-ປູ_ເສືອ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div>
-            </div>
-            <div onclick="placeBet('ປາ_ໄກ່')" class="split-bet-btn" style="top: 50%; left: 50%;">
-                <div id="bet-total-ປາ_ໄກ່" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div>
-            </div>
-            <div onclick="placeBet('ນ້ຳເຕົ້າ_ກຸ້ງ')" class="split-bet-btn" style="top: 50%; left: 82%;">
-                <div id="bet-total-ນ້ຳເຕົ້າ_ກຸ້ງ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div>
-            </div>
-
-            <div onclick="placeBet('ປູ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]">
-                <div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🦀</div><span class="text-xs font-bold text-amber-200">ປູ</span>
-                <div id="bet-total-ປູ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div>
-            </div>
-            <div onclick="placeBet('ປາ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]">
-                <div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🐟</div><span class="text-xs font-bold text-amber-200">ປາ</span>
-                <div id="bet-total-ປາ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div>
-            </div>
-            <div onclick="placeBet('ນ້ຳເຕົ້າ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]">
-                <div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🏮</div><span class="text-xs font-bold text-amber-200">ນ້ຳເຕົ້າ</span>
-                <div id="bet-total-ນ້ຳເຕົ້າ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div>
-            </div>
-            <div onclick="placeBet('ເສືອ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]">
-                <div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🐯</div><span class="text-xs font-bold text-amber-200">ເສືອ</span>
-                <div id="bet-total-ເສືອ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div>
-            </div>
-            <div onclick="placeBet('ໄກ່')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]">
-                <div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🐓</div><span class="text-xs font-bold text-amber-200">ໄກ່</span>
-                <div id="bet-total-ໄກ່" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div>
-            </div>
-            <div onclick="placeBet('ກຸ້ງ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]">
-                <div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🦐</div><span class="text-xs font-bold text-amber-200">ກຸ້ງ</span>
-                <div id="bet-total-ກຸ້ງ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div>
-            </div>
+            <div onclick="placeBet('ປູ_ປາ')" class="split-bet-btn" style="top: 28%; left: 34.5%;"><div id="bet-total-ປູ_ປາ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div></div>
+            <div onclick="placeBet('ປາ_ນ້ຳເຕົ້າ')" class="split-bet-btn" style="top: 28%; left: 65.5%;"><div id="bet-total-ປາ_ນ້ຳເຕົ້າ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div></div>
+            <div onclick="placeBet('ເສືອ_ໄກ່')" class="split-bet-btn" style="top: 72%; left: 34.5%;"><div id="bet-total-ເສືອ_ໄກ່" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div></div>
+            <div onclick="placeBet('ໄກ່_ກຸ້ງ')" class="split-bet-btn" style="top: 72%; left: 65.5%;"><div id="bet-total-ໄກ່_ກຸ້ງ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div></div>
+            <div onclick="placeBet('ປູ_ເສືອ')" class="split-bet-btn" style="top: 50%; left: 18%;"><div id="bet-total-ປູ_ເສືອ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div></div>
+            <div onclick="placeBet('ປາ_ໄກ່')" class="split-bet-btn" style="top: 50%; left: 50%;"><div id="bet-total-ປາ_ໄກ່" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div></div>
+            <div onclick="placeBet('ນ້ຳເຕົ້າ_ກຸ້ງ')" class="split-bet-btn" style="top: 50%; left: 82%;"><div id="bet-total-ນ້ຳເຕົ້າ_ກຸ້ງ" class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] bg-indigo-600 text-white px-1 rounded-full font-mono font-bold hidden">0</div></div>
+            <div onclick="placeBet('ປູ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]"><div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🦀</div><span class="text-xs font-bold text-amber-200">ປູ</span><div id="bet-total-ປູ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div></div>
+            <div onclick="placeBet('ປາ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]"><div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🐟</div><span class="text-xs font-bold text-amber-200">ປາ</span><div id="bet-total-ປາ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div></div>
+            <div onclick="placeBet('ນ້ຳເຕົ້າ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]"><div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🏮</div><span class="text-xs font-bold text-amber-200">ນ້ຳເຕົ້າ</span><div id="bet-total-ນ້ຳເຕົ້າ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div></div>
+            <div onclick="placeBet('ເສືອ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]"><div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🐯</div><span class="text-xs font-bold text-amber-200">ເສືອ</span><div id="bet-total-ເສືອ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div></div>
+            <div onclick="placeBet('ໄກ່')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]"><div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🐓</div><span class="text-xs font-bold text-amber-200">ໄກ່</span><div id="bet-total-ໄກ່" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div></div>
+            <div onclick="placeBet('ກຸ້ງ')" class="classic-card cursor-pointer p-2 rounded-xl flex flex-col items-center justify-center relative min-h-[100px]"><div class="emoji-circle w-14 h-14 rounded-full flex items-center justify-center text-3xl mb-1">🦐</div><span class="text-xs font-bold text-amber-200">ກຸ້ງ</span><div id="bet-total-ກຸ້ງ" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden z-10">0</div></div>
         </div>
 
         <div class="flex justify-center space-x-2 py-2 bg-slate-900/40 rounded-xl p-2 border border-slate-800">
@@ -563,7 +682,6 @@
                 <span class="text-xs font-bold text-amber-400 flex items-center"><i class="fas fa-history mr-1.5"></i> ປະຫວັດຜົນອອກຍ້ອນຫຼັງ</span>
                 <span class="text-[10px] text-slate-400 font-mono">ຫຼ້າສຸດ 2 ຮອບ: <span id="quick-hist" class="text-white ml-1 font-sans">...</span></span>
             </div>
-            
             <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/40">
                 <span class="text-[10px] text-slate-400 block mb-1.5 font-bold"><i class="fas fa-chart-bar mr-1"></i> ສະຖິຕິການອອກ (10 ຮອບຫຼ້າສຸດ)</span>
                 <div id="dice-stats-container" class="grid grid-cols-6 gap-1 text-center text-xs">
@@ -575,80 +693,37 @@
                     <div class="bg-slate-900 p-1 rounded border border-slate-800/50">🦐 <span id="stat-count-ກຸ້ງ" class="font-bold text-amber-400 block text-[10px] mt-0.5">0</span></div>
                 </div>
             </div>
-
             <div class="max-h-48 overflow-y-auto rounded-xl border border-slate-800/60 bg-slate-950/40">
                 <table class="w-full text-left text-xs border-collapse">
-                    <thead>
-                        <tr class="bg-slate-900 text-slate-400 border-b border-slate-800 text-[10px]">
-                            <th class="p-2 text-center w-1/4">ຮອບທີ</th>
-                            <th class="p-2 w-1/2">ຜົນອອກ (ລູກເຕົາ 3 ລູກ)</th>
-                            <th class="p-2 text-center w-1/4">ລວມ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="result-history-table-body" class="font-mono divide-y divide-slate-900">
-                        <tr>
-                            <td colspan="3" class="p-4 text-center text-slate-500 text-[11px]">⏳ ກຳລັງໂຫຼດປະຫວັດຜົນອອກ...</td>
-                        </tr>
-                    </tbody>
+                    <thead><tr class="bg-slate-900 text-slate-400 border-b border-slate-800 text-[10px]"><th class="p-2 text-center w-1/4">ຮອບທີ</th><th class="p-2 w-1/2">ຜົນອອກ (ລູກເຕົາ 3 ລູກ)</th><th class="p-2 text-center w-1/4">ລວມ</th></tr></thead>
+                    <tbody id="result-history-table-body" class="font-mono divide-y divide-slate-900"><tr><td colspan="3" class="p-4 text-center text-slate-500 text-[11px]">⏳ ກຳລັງໂຫຼດປະຫວັດຜົນອອກ...</td></tr></tbody>
                 </table>
             </div>
         </div>
         </div>
         <!-- ====== ສິ້ນສຸດ MOP SECTION ====== -->
 
-        <!-- =========================================================== -->
-        <!-- ✨ SECTION ໃໝ່: ບາຄາລາ (Baccarat)                           -->
-        <!-- =========================================================== -->
+        <!-- BACCARAT SECTION -->
         <div id="baccarat-game-section" class="space-y-4 hidden">
             <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-800/80 flex justify-between items-center">
-                <div>
-                    <span class="text-xs text-slate-400 block mb-0.5">ສະຖານະຮອບນີ້ (ບາຄາລາ)</span>
-                    <span id="bc-status-text" class="text-sm font-bold text-emerald-400">ກຳລັງເປີດຮັບເດີມພັນ</span>
-                </div>
+                <div><span class="text-xs text-slate-400 block mb-0.5">ສະຖານະຮອບນີ້ (ບາຄາລາ)</span><span id="bc-status-text" class="text-sm font-bold text-emerald-400">ກຳລັງເປີດຮັບເດີມພັນ</span></div>
                 <div id="bc-timer-box" class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono font-bold text-xl text-emerald-400 shadow-inner">20</div>
             </div>
-
-            <!-- ໂຕະໄພ່ -->
             <div class="bc-table p-4">
                 <div class="flex justify-between items-end mb-2 px-2">
-                    <div class="text-center flex-1">
-                        <span class="text-blue-300 font-bold text-sm">ຜູ້ເລ່ນ</span>
-                        <div id="bc-player-total" class="text-3xl font-bold text-blue-300 font-mono">0</div>
-                    </div>
-                    <div class="text-center flex-1">
-                        <span class="text-red-400 font-bold text-sm">ເຈົ້າມື</span>
-                        <div id="bc-banker-total" class="text-3xl font-bold text-red-400 font-mono">0</div>
-                    </div>
+                    <div class="text-center flex-1"><span class="text-blue-300 font-bold text-sm">ຜູ້ເລ່ນ</span><div id="bc-player-total" class="text-3xl font-bold text-blue-300 font-mono">0</div></div>
+                    <div class="text-center flex-1"><span class="text-red-400 font-bold text-sm">ເຈົ້າມື</span><div id="bc-banker-total" class="text-3xl font-bold text-red-400 font-mono">0</div></div>
                 </div>
                 <div class="flex justify-between gap-4 px-2 pb-2">
                     <div id="bc-player-cards" class="flex gap-1.5 flex-1 justify-center min-h-[78px] items-center"></div>
                     <div id="bc-banker-cards" class="flex gap-1.5 flex-1 justify-center min-h-[78px] items-center"></div>
                 </div>
             </div>
-
-            <!-- ກ່ອງເດີມພັນ -->
             <div class="grid grid-cols-3 gap-2">
-                <div onclick="bcPlaceBet('player')" class="bc-bet-zone bg-blue-900/40 p-3 text-center relative">
-                    <div class="text-xs text-slate-400">53%</div>
-                    <div class="text-base font-bold text-blue-300">ຜູ້ເລ່ນ</div>
-                    <div class="text-[10px] text-slate-400">1:1</div>
-                    <div id="bc-bet-player-amt" class="absolute top-1 right-1 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden">0</div>
-                </div>
-                <div onclick="bcPlaceBet('tie')" class="bc-bet-zone bg-emerald-900/40 p-3 text-center relative">
-                    <div class="text-xs text-slate-400">ໂອກາດ</div>
-                    <div class="text-base font-bold text-emerald-300">ເສມີ</div>
-                    <div class="text-[10px] text-slate-400">1:8</div>
-                    <div id="bc-bet-tie-amt" class="absolute top-1 right-1 text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden">0</div>
-                </div>
-                <div onclick="bcPlaceBet('banker')" class="bc-bet-zone bg-red-900/40 p-3 text-center relative">
-                    <div class="text-xs text-slate-400">47%</div>
-                    <div class="text-base font-bold text-red-400">ເຈົ້າມື</div>
-                    <div class="text-[10px] text-slate-400">1:0.95</div>
-                    <div id="bc-bet-banker-amt" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden">0</div>
-                </div>
+                <div onclick="bcPlaceBet('player')" class="bc-bet-zone bg-blue-900/40 p-3 text-center relative"><div class="text-xs text-slate-400">53%</div><div class="text-base font-bold text-blue-300">ຜູ້ເລ່ນ</div><div class="text-[10px] text-slate-400">1:1</div><div id="bc-bet-player-amt" class="absolute top-1 right-1 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden">0</div></div>
+                <div onclick="bcPlaceBet('tie')" class="bc-bet-zone bg-emerald-900/40 p-3 text-center relative"><div class="text-xs text-slate-400">ໂອກາດ</div><div class="text-base font-bold text-emerald-300">ເສມີ</div><div class="text-[10px] text-slate-400">1:8</div><div id="bc-bet-tie-amt" class="absolute top-1 right-1 text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden">0</div></div>
+                <div onclick="bcPlaceBet('banker')" class="bc-bet-zone bg-red-900/40 p-3 text-center relative"><div class="text-xs text-slate-400">47%</div><div class="text-base font-bold text-red-400">ເຈົ້າມື</div><div class="text-[10px] text-slate-400">1:0.95</div><div id="bc-bet-banker-amt" class="absolute top-1 right-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-mono font-bold hidden">0</div></div>
             </div>
-
-            <!-- ຊິບເລືອກ -->
             <div class="flex justify-center space-x-2 py-2 bg-slate-900/40 rounded-xl p-2 border border-slate-800">
                 <button onclick="bcSelectChip(5000)" id="bc-chip-5000" class="w-[58px] h-11 rounded-full bg-blue-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition chip-active">5ພັນ</button>
                 <button onclick="bcSelectChip(20000)" id="bc-chip-20000" class="w-[58px] h-11 rounded-full bg-amber-500 border border-white font-mono font-bold text-[10px] text-slate-950 shadow-md active:scale-90 transition">20ພັນ</button>
@@ -656,13 +731,8 @@
                 <button onclick="bcSelectChip(100000)" id="bc-chip-100000" class="w-[58px] h-11 rounded-full bg-purple-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">1ແສນ</button>
                 <button onclick="bcSelectChip(200000)" id="bc-chip-200000" class="w-[58px] h-11 rounded-full bg-red-600 border border-white font-mono font-bold text-[10px] shadow-md active:scale-90 transition">2ແສນ</button>
             </div>
-
-            <!-- Bead Road ປະຫວັດຜົນອອກ -->
             <div class="bg-slate-900/70 p-4 rounded-2xl border border-slate-800/80 space-y-3">
-                <div class="flex justify-between items-center pb-1.5 border-b border-slate-800/60">
-                    <span class="text-xs font-bold text-amber-400 flex items-center"><i class="fas fa-history mr-1.5"></i> ປະຫວັດຜົນອອກ (Bead Road)</span>
-                    <span id="bc-stats-text" class="text-[10px] text-slate-400 font-mono">ຜູ້ເລ່ນ 0 | ເຈົ້າມື 0 | ເສມີ 0</span>
-                </div>
+                <div class="flex justify-between items-center pb-1.5 border-b border-slate-800/60"><span class="text-xs font-bold text-amber-400 flex items-center"><i class="fas fa-history mr-1.5"></i> ປະຫວັດຜົນອອກ (Bead Road)</span><span id="bc-stats-text" class="text-[10px] text-slate-400 font-mono">ຜູ້ເລ່ນ 0 | ເຈົ້າມື 0 | ເສມີ 0</span></div>
                 <div id="bc-bead-road" class="grid grid-cols-[repeat(auto-fill,18px)] gap-1 bg-slate-950/60 p-2 rounded-xl border border-slate-800/40 max-h-32 overflow-y-auto"></div>
                 <div class="flex items-center space-x-3 text-[10px] text-slate-400 font-mono pt-1">
                     <span class="flex items-center"><span class="bc-bead bc-bead-player mr-1" style="width:12px;height:12px;"></span>ຜູ້ເລ່ນ</span>
@@ -672,7 +742,6 @@
             </div>
         </div>
         <!-- ====== ສິ້ນສຸດ BACCARAT SECTION ====== -->
-
     </div>
 </div>
 
@@ -698,131 +767,505 @@
     ];
 
     /* ================================================================
-       ✨ ຟັງຊັ່ນໃໝ່ #1: ຕັ້ງ Presence (Online/Offline) ໃຫ້ user ໃນ Firebase
+       ✨ Toast notification (ແຈ້ງເຕືອນ realtime ໃຫ້ລູກຄ້າ)
+       ================================================================ */
+    function showToast(message, type = 'info', duration = 5000) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        const colors = {
+            success: 'bg-emerald-800 border-emerald-500 text-emerald-100',
+            error:   'bg-red-900 border-red-500 text-red-100',
+            info:    'bg-slate-800 border-slate-600 text-slate-100',
+            warning: 'bg-amber-900 border-amber-500 text-amber-100'
+        };
+        const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+        toast.className = `pointer-events-auto w-full border rounded-2xl px-4 py-3 shadow-2xl flex items-start space-x-3 toast-in ${colors[type] || colors.info}`;
+        toast.style.cssText = 'backdrop-filter: blur(8px);';
+        toast.innerHTML = `
+            <span class="text-xl flex-shrink-0 mt-0.5">${icons[type] || icons.info}</span>
+            <p class="text-xs font-bold leading-relaxed flex-1">${message}</p>
+            <button onclick="this.parentElement.remove()" class="flex-shrink-0 opacity-60 hover:opacity-100 text-xs ml-1">✕</button>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('toast-in');
+            toast.classList.add('toast-out');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    /* ================================================================
+       ✨ Realtime listener: ແຈ້ງເຕືອນລູກຄ້າເມື່ອ admin ອະນຸມັດ/ປະຕິເສດ
+       ================================================================ */
+    let _knownDepositStatuses = {};
+    let _knownWithdrawStatuses = {};
+
+    function initUserRequestListener(username) {
+        if (!username || !window.fbDB) return;
+
+        /* ຝາກ */
+        window.fbOnValue(window.fbRef(window.fbDB, 'deposit_requests'), (snap) => {
+            if (!snap.exists()) return;
+            const data = snap.val();
+            for (let reqId in data) {
+                const req = data[reqId];
+                if (req.username !== username) continue;
+                const prevStatus = _knownDepositStatuses[reqId];
+                const newStatus  = req.status;
+                if (prevStatus && prevStatus === 'pending' && newStatus !== 'pending') {
+                    if (newStatus === 'approved') {
+                        showToast(
+                            `💰 ຄຳຂໍຝາກ ${(req.amount||0).toLocaleString()} ກີບ ໄດ້ຮັບການ ✅ ອະນຸມັດແລ້ວ! ເງິນຂອງທ່ານຖືກເຕີມເຂົ້າແລ້ວ`,
+                            'success', 8000
+                        );
+                    } else if (newStatus === 'rejected') {
+                        showToast(
+                            `❌ ຄຳຂໍຝາກ ${(req.amount||0).toLocaleString()} ກີບ ຖືກປະຕິເສດ ກະລຸນາຕິດຕໍ່ admin`,
+                            'error', 8000
+                        );
+                    }
+                    /* ຮີເຟຣດ modal ຖ້າເປີດຢູ່ */
+                    if (!document.getElementById('my-finance-modal').classList.contains('hidden')) renderMyFinanceList();
+                }
+                _knownDepositStatuses[reqId] = newStatus;
+            }
+        });
+
+        /* ຖອນ */
+        window.fbOnValue(window.fbRef(window.fbDB, 'withdraw_requests'), (snap) => {
+            if (!snap.exists()) return;
+            const data = snap.val();
+            for (let reqId in data) {
+                const req = data[reqId];
+                if (req.username !== username) continue;
+                const prevStatus = _knownWithdrawStatuses[reqId];
+                const newStatus  = req.status;
+                if (prevStatus && prevStatus === 'pending' && newStatus !== 'pending') {
+                    if (newStatus === 'approved') {
+                        showToast(
+                            `💸 ຄຳຂໍຖອນ ${(req.amount||0).toLocaleString()} ກີບ ໄດ້ຮັບການ ✅ ອະນຸມັດ! ກະລຸນາກວດສອບ QR ຂອງທ່ານ`,
+                            'success', 8000
+                        );
+                    } else if (newStatus === 'rejected') {
+                        showToast(
+                            `❌ ຄຳຂໍຖອນ ${(req.amount||0).toLocaleString()} ກີບ ຖືກປະຕິເສດ ກະລຸນາຕິດຕໍ່ admin ເບີແອັບ 2094357757`,
+                            'error', 8000
+                        );
+                    }
+                    /* ຮີເຟຣດ modal ຖ້າເປີດຢູ່ */
+                    if (!document.getElementById('my-finance-modal').classList.contains('hidden')) renderMyFinanceList();
+                }
+                _knownWithdrawStatuses[reqId] = newStatus;
+            }
+        });
+    }
+
+    /* ================================================================
+       ✨ ຟັງຊັນ Deposit ທີ່ອັບເດດ
+       ================================================================ */
+    function openDepositModal() {
+        if (!currentActiveUser) return showAlert('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ!', '⚠️');
+        depositProofImageBase64 = null;
+        document.getElementById('deposit-step1').classList.remove('hidden');
+        document.getElementById('deposit-step2').classList.add('hidden');
+        document.getElementById('deposit-amount-input').value = '';
+        document.getElementById('deposit-proof-preview').classList.add('hidden');
+        document.getElementById('deposit-proof-placeholder').classList.remove('hidden');
+        document.getElementById('deposit-proof-upload-zone').classList.remove('has-image');
+        document.getElementById('deposit-modal').classList.remove('hidden');
+    }
+
+    function closeDepositModal() {
+        document.getElementById('deposit-modal').classList.add('hidden');
+    }
+
+    function setDepositAmount(amount) {
+        document.getElementById('deposit-amount-input').value = amount;
+    }
+
+    /* ✨ preview ຫຼັກຖານ */
+    function previewDepositProof(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            depositProofImageBase64 = e.target.result;
+            const preview = document.getElementById('deposit-proof-preview');
+            preview.src = depositProofImageBase64;
+            preview.classList.remove('hidden');
+            document.getElementById('deposit-proof-placeholder').classList.add('hidden');
+            document.getElementById('deposit-proof-upload-zone').classList.add('has-image');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function goDepositStep2() {
+        const amt = parseFloat(document.getElementById('deposit-amount-input').value);
+        if (!amt || amt <= 0) return showAlert('ກະລຸນາໃສ່ຈຳນວນເງິນ!', '⚠️');
+        window.fbGet(window.fbRef(window.fbDB, 'system_qr')).then(snap => {
+            const qrData = snap.exists() ? snap.val() : null;
+            const qrImg = document.getElementById('deposit-qr-img');
+            if (qrData) {
+                qrImg.src = qrData;
+                qrImg.style.display = 'block';
+            } else {
+                qrImg.src = '';
+                qrImg.alt = 'ຍັງບໍ່ມີ QR — ກະລຸນາຕິດຕໍ່ admin';
+            }
+            document.getElementById('deposit-amount-show').innerText = amt.toLocaleString() + ' ກີບ';
+            document.getElementById('deposit-step1').classList.add('hidden');
+            document.getElementById('deposit-step2').classList.remove('hidden');
+        });
+    }
+
+    function backDepositStep1() {
+        document.getElementById('deposit-step1').classList.remove('hidden');
+        document.getElementById('deposit-step2').classList.add('hidden');
+    }
+
+    /* ✨ ອັບເດດ: ສົ່ງ proofImage ນຳ */
+    function confirmDepositRequest() {
+        const amt = parseFloat(document.getElementById('deposit-amount-input').value);
+        if (!amt || amt <= 0) return;
+        if (!depositProofImageBase64) return showAlert('ກະລຸນາອັບໂຫຼດຫຼັກຖານການໂອນກ່ອນ!', '⚠️');
+        const d = new Date();
+        const timeStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+        const reqId = Date.now().toString();
+        window.fbSet(window.fbRef(window.fbDB, `deposit_requests/${reqId}`), {
+            username: currentActiveUser.username,
+            amount: amt,
+            status: 'pending',
+            time: timeStr,
+            type: 'deposit',
+            proofImage: depositProofImageBase64   /* ✨ ໃໝ່ */
+        }).then(() => {
+            /* pre-load known status ເພື່ອ listener ຮຽກຖືກ */
+            _knownDepositStatuses[reqId] = 'pending';
+            closeDepositModal();
+            showAlert('✅ ແຈ້ງຝາກສຳເລັດ! ກະລຸນາລໍຖ້າ admin ອະນຸມັດ', '💰');
+        });
+    }
+
+    /* ================================================================
+       ✨ ຟັງຊັນ Withdraw ທີ່ອັບເດດ
+       ================================================================ */
+    function openWithdrawModal() {
+        if (!currentActiveUser) return showAlert('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ!', '⚠️');
+        withdrawQRImageBase64 = null;
+        document.getElementById('withdraw-amount-input').value = '';
+        document.getElementById('withdraw-qr-preview').classList.add('hidden');
+        document.getElementById('withdraw-upload-placeholder').classList.remove('hidden');
+        document.getElementById('withdraw-upload-zone').classList.remove('has-image');
+        document.getElementById('withdraw-credit-show').innerText = (currentActiveUser.credit || 0).toLocaleString() + ' ກີບ';
+        document.getElementById('withdraw-modal').classList.remove('hidden');
+    }
+
+    function closeWithdrawModal() {
+        document.getElementById('withdraw-modal').classList.add('hidden');
+    }
+
+    function setWithdrawAmount(amount) {
+        document.getElementById('withdraw-amount-input').value = amount;
+    }
+
+    function previewWithdrawQR(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            withdrawQRImageBase64 = e.target.result;
+            const preview = document.getElementById('withdraw-qr-preview');
+            preview.src = withdrawQRImageBase64;
+            preview.classList.remove('hidden');
+            document.getElementById('withdraw-upload-placeholder').classList.add('hidden');
+            document.getElementById('withdraw-upload-zone').classList.add('has-image');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function confirmWithdrawRequest() {
+        const amt = parseFloat(document.getElementById('withdraw-amount-input').value);
+        if (!amt || amt <= 0) return showAlert('ກະລຸນາໃສ່ຈຳນວນເງິນ!', '⚠️');
+        if (!withdrawQRImageBase64) return showAlert('ກະລຸນາອັບໂຫຼດ QR ຮັບເງິນຂອງທ່ານ!', '⚠️');
+        if (currentActiveUser.role !== 'admin' && (currentActiveUser.credit || 0) < amt) {
+            return showAlert('ເງິນບໍ່ພໍ!', '❌');
+        }
+        const d = new Date();
+        const timeStr = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+        const reqId = Date.now().toString();
+        window.fbSet(window.fbRef(window.fbDB, `withdraw_requests/${reqId}`), {
+            username: currentActiveUser.username,
+            amount: amt,
+            status: 'pending',
+            time: timeStr,
+            type: 'withdraw',
+            qrImage: withdrawQRImageBase64
+        }).then(() => {
+            _knownWithdrawStatuses[reqId] = 'pending';
+            closeWithdrawModal();
+            showAlert('✅ ສົ່ງຄຳຂໍຖອນແລ້ວ! ກະລຸນາລໍຖ້າ admin ອະນຸມັດ', '💸');
+        });
+    }
+
+    /* ================================================================
+       Admin: QR + ຄຳຂໍ
+       ================================================================ */
+    let currentReqTab = 'deposit';
+
+    function openAdminRequestsModal() {
+        document.getElementById('admin-requests-modal').classList.remove('hidden');
+        loadSystemQRPreview();
+        switchReqTab('deposit');
+    }
+
+    function closeAdminRequestsModal() {
+        document.getElementById('admin-requests-modal').classList.add('hidden');
+    }
+
+    function switchReqTab(tab) {
+        currentReqTab = tab;
+        const btnD = document.getElementById('req-tab-deposit');
+        const btnW = document.getElementById('req-tab-withdraw');
+        const setQR = document.getElementById('admin-set-qr-zone');
+        if (tab === 'deposit') {
+            btnD.className = 'bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition';
+            btnW.className = 'bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition';
+            setQR.classList.remove('hidden');
+        } else {
+            btnW.className = 'bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition';
+            btnD.className = 'bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition';
+            setQR.classList.add('hidden');
+        }
+        renderAdminRequests();
+    }
+
+    function uploadSystemQR(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const b64 = e.target.result;
+            window.fbSet(window.fbRef(window.fbDB, 'system_qr'), b64).then(() => {
+                loadSystemQRPreview();
+                showAlert('✅ ອັບໂຫຼດ QR ລະບົບສຳເລັດ!', '🟢');
+            });
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function loadSystemQRPreview() {
+        window.fbGet(window.fbRef(window.fbDB, 'system_qr')).then(snap => {
+            const preview = document.getElementById('admin-system-qr-preview');
+            const placeholder = document.getElementById('admin-system-qr-placeholder');
+            if (snap.exists()) {
+                preview.src = snap.val();
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+        });
+    }
+
+    /* ✨ renderAdminRequests ອັບເດດ — ສະແດງ proofImage ສຳລັບ deposit ດ້ວຍ */
+    function renderAdminRequests() {
+        const listEl = document.getElementById('admin-requests-list');
+        listEl.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">⏳ ກຳລັງໂຫຼດ...</div>';
+        const path = currentReqTab === 'deposit' ? 'deposit_requests' : 'withdraw_requests';
+        window.fbGet(window.fbRef(window.fbDB, path)).then(snap => {
+            if (!snap.exists()) {
+                listEl.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">📭 ຍັງບໍ່ມີຄຳຂໍ</div>';
+                return;
+            }
+            const data = snap.val();
+            const items = Object.entries(data).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+            listEl.innerHTML = '';
+            items.forEach(([reqId, req]) => {
+                const isPending = req.status === 'pending';
+                const borderClass = currentReqTab === 'deposit' ? 'request-card-deposit' : 'request-card-withdraw';
+                const statusBadge = isPending
+                    ? '<span class="bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded font-bold border border-amber-500/30">ລໍຖ້າ</span>'
+                    : req.status === 'approved'
+                        ? '<span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">ອະນຸມັດ</span>'
+                        : '<span class="bg-red-500/20 text-red-400 text-[10px] px-1.5 py-0.5 rounded font-bold border border-red-500/30">ປະຕິເສດ</span>';
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-950 border border-slate-800 ${borderClass} rounded-xl p-3 space-y-2`;
+
+                /* ✨ ສຳລັບ deposit: ສະແດງ proofImage; ສຳລັບ withdraw: ສະແດງ qrImage */
+                let imageSection = '';
+                if (currentReqTab === 'deposit' && req.proofImage) {
+                    imageSection = `<div class="text-center pt-1"><p class="text-[10px] text-slate-400 mb-1">🧾 ຫຼັກຖານການໂອນ:</p><img src="${req.proofImage}" class="w-28 h-28 mx-auto rounded-lg border border-emerald-700 object-contain bg-white p-1"></div>`;
+                } else if (currentReqTab === 'withdraw' && req.qrImage) {
+                    imageSection = `<div class="text-center pt-1"><p class="text-[10px] text-slate-400 mb-1">📱 QR ຮັບເງິນຂອງລູກຄ້າ:</p><img src="${req.qrImage}" class="w-28 h-28 mx-auto rounded-lg border border-slate-700 object-contain bg-white p-1"></div>`;
+                }
+
+                let actionBtns = '';
+                if (isPending) {
+                    actionBtns = `
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button onclick="adminApproveRequest('${reqId}', '${currentReqTab}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded-xl text-[11px] transition">✅ ອະນຸມັດ</button>
+                            <button onclick="adminRejectRequest('${reqId}', '${currentReqTab}')" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1.5 rounded-xl text-[11px] transition">❌ ປະຕິເສດ</button>
+                        </div>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div><span class="text-slate-200 font-bold text-sm">👤 ${req.username}</span><br><span class="text-[10px] text-slate-500 font-mono">${req.time}</span></div>
+                        <div class="flex flex-col items-end space-y-1">
+                            ${statusBadge}
+                            <span class="text-amber-400 font-bold font-mono text-xs">${(req.amount||0).toLocaleString()} ກີບ</span>
+                        </div>
+                    </div>
+                    ${imageSection}
+                    ${actionBtns}
+                `;
+                listEl.appendChild(card);
+            });
+        });
+    }
+
+    function adminApproveRequest(reqId, type) {
+        const path = type === 'deposit' ? 'deposit_requests' : 'withdraw_requests';
+        window.fbGet(window.fbRef(window.fbDB, `${path}/${reqId}`)).then(snap => {
+            if (!snap.exists()) return;
+            const req = snap.val();
+            const d = new Date();
+            const dateString = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+            window.fbGet(window.fbRef(window.fbDB, 'users/' + req.username)).then(uSnap => {
+                if (!uSnap.exists()) return;
+                const uData = uSnap.val();
+
+                if (type === 'deposit') {
+                    window.fbUpdate(window.fbRef(window.fbDB, 'users/' + req.username), {
+                        credit: (uData.credit || 0) + req.amount,
+                        topUpCount: (uData.topUpCount || 0) + 1,
+                        topUpAmount: (uData.topUpAmount || 0) + req.amount,
+                        lastTopUpDate: dateString
+                    });
+                } else {
+                    if ((uData.credit || 0) < req.amount) {
+                        showAlert('ເງິນລູກຄ້າບໍ່ພໍ!', '❌');
+                        return;
+                    }
+                    window.fbUpdate(window.fbRef(window.fbDB, 'users/' + req.username), {
+                        credit: uData.credit - req.amount,
+                        withdrawCount: (uData.withdrawCount || 0) + 1,
+                        withdrawAmount: (uData.withdrawAmount || 0) + req.amount,
+                        lastWithdrawDate: dateString
+                    });
+                }
+
+                window.fbUpdate(window.fbRef(window.fbDB, `${path}/${reqId}`), { status: 'approved' }).then(() => {
+                    showAlert(`✅ ອະນຸມັດ ${type === 'deposit' ? 'ຝາກ' : 'ຖອນ'} ສຳເລັດ!`, '💰');
+                    renderAdminRequests();
+                    updateInboxBadge();
+                });
+            });
+        });
+    }
+
+    function adminRejectRequest(reqId, type) {
+        const path = type === 'deposit' ? 'deposit_requests' : 'withdraw_requests';
+        window.fbUpdate(window.fbRef(window.fbDB, `${path}/${reqId}`), { status: 'rejected' }).then(() => {
+            showAlert('❌ ປະຕິເສດຄຳຂໍແລ້ວ', '🚫');
+            renderAdminRequests();
+            updateInboxBadge();
+        });
+    }
+
+    function updateInboxBadge() {
+        if (!currentActiveUser || currentActiveUser.role !== 'admin') return;
+        Promise.all([
+            window.fbGet(window.fbRef(window.fbDB, 'deposit_requests')),
+            window.fbGet(window.fbRef(window.fbDB, 'withdraw_requests'))
+        ]).then(([dSnap, wSnap]) => {
+            let count = 0;
+            if (dSnap.exists()) { const d = dSnap.val(); for (let k in d) if (d[k].status === 'pending') count++; }
+            if (wSnap.exists()) { const w = wSnap.val(); for (let k in w) if (w[k].status === 'pending') count++; }
+            const badge = document.getElementById('inbox-badge');
+            if (badge) { badge.innerText = count; badge.classList.toggle('hidden', count === 0); }
+        });
+    }
+
+    function initDepositWithdrawListeners() {
+        window.fbOnValue(window.fbRef(window.fbDB, 'deposit_requests'), () => updateInboxBadge());
+        window.fbOnValue(window.fbRef(window.fbDB, 'withdraw_requests'), () => updateInboxBadge());
+    }
+
+    /* ================================================================
+       Presence
        ================================================================ */
     function setupPresence(username) {
         if (!username || !window.fbDB) return;
         const presenceRef = window.fbRef(window.fbDB, 'users/' + username + '/isOnline');
         const connRef = window.fbRef(window.fbDB, '.info/connected');
-
         window.fbOnValue(connRef, (snap) => {
             if (snap.val() === true) {
-                /* ເມື່ອ disconnect (ອອກ, ປິດ browser) ຈະ set isOnline = false ອັດຕະໂນມັດ */
                 window.fbOnDisconnect(presenceRef).set(false);
-                /* ຕອນ online ຕັ້ງເປັນ true */
                 window.fbSet(presenceRef, true);
             }
         });
     }
 
     /* ================================================================
-       ✨ ຟັງຊັ່ນໃໝ່ #2: ບັນທຶກປະຫວັດການແທງຂອງ user ລົງ Firebase
-         ເອີ້ນໃນ placeBet() ຫຼັງຈາກ transaction ສຳເລັດ
+       Bet History
        ================================================================ */
     function saveBetHistory(username, roundId, betType, betAmount) {
         if (!username || !roundId) return;
         const d = new Date();
         const timeStr = `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
         const histRef = window.fbRef(window.fbDB, `bet_history/${username}/${roundId}/${betType}`);
-        /* runTransaction ເພື່ອລວມຍອດຖ້າແທງຊ້ຳໃນຮອບດຽວກັນ */
         window.fbRunTransaction(histRef, (cur) => (cur || 0) + betAmount);
-
-        /* ບັນທຶກເວລາຮອບຫຼ້າສຸດ */
         const metaRef = window.fbRef(window.fbDB, `bet_history/${username}/${roundId}/_meta`);
         window.fbSet(metaRef, { time: timeStr });
     }
 
-    /* ================================================================
-       ✨ ຟັງຊັ່ນໃໝ່ #3: ເປີດ Modal ດູປະຫວັດການແທງຂອງລູກຄ້າ (ສຳລັບແອດມິນ)
-       ================================================================ */
     function openBetHistoryModal(username) {
         currentViewBetUser = username;
         const uData = allUsersData[username] || {};
-
         document.getElementById('bh-username').innerText = username;
         document.getElementById('bh-credit-display').innerText = (uData.credit || 0).toLocaleString() + ' ກີບ';
-
-        /* ສະຖານະ Online/Offline */
         const dot = document.getElementById('bh-status-dot');
         const txt = document.getElementById('bh-status-text');
         if (uData.isOnline === true) {
-            dot.className = 'online-dot';
-            txt.innerText = '🟢 ກຳລັງຫຼິ້ນເກມຢູ່ (Online)';
-            txt.className = 'text-xs font-bold text-emerald-400';
+            dot.className = 'online-dot'; txt.innerText = '🟢 ກຳລັງຫຼິ້ນເກມຢູ່ (Online)'; txt.className = 'text-xs font-bold text-emerald-400';
         } else {
-            dot.className = 'offline-dot';
-            txt.innerText = '⚫ ອອກຈາກລະບົບແລ້ວ (Offline)';
-            txt.className = 'text-xs font-bold text-slate-400';
+            dot.className = 'offline-dot'; txt.innerText = '⚫ ອອກຈາກລະບົບແລ້ວ (Offline)'; txt.className = 'text-xs font-bold text-slate-400';
         }
-
-        /* ໂຫຼດປະຫວັດການແທງ */
         const bhList = document.getElementById('bh-list');
         bhList.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">⏳ ກຳລັງໂຫຼດ...</div>';
-
         window.fbGet(window.fbRef(window.fbDB, `bet_history/${username}`)).then((snap) => {
-            if (!snap.exists()) {
-                bhList.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">📭 ຍັງບໍ່ມີປະຫວັດການແທງ</div>';
-                return;
-            }
+            if (!snap.exists()) { bhList.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">📭 ຍັງບໍ່ມີປະຫວັດການແທງ</div>'; return; }
             const data = snap.val();
-            /* ຈັດຮຽງຮອບຈາກຫຼ້າສຸດ */
-            const rounds = Object.keys(data)
-                .filter(k => k !== '_meta')
-                .sort((a, b) => parseInt(b) - parseInt(a))
-                .slice(0, 15); /* ສະແດງ 15 ຮອບຫຼ້າສຸດ */
-
-            if (rounds.length === 0) {
-                bhList.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">📭 ຍັງບໍ່ມີປະຫວັດການແທງ</div>';
-                return;
-            }
-
+            const rounds = Object.keys(data).filter(k => k !== '_meta').sort((a, b) => parseInt(b) - parseInt(a)).slice(0, 15);
+            if (rounds.length === 0) { bhList.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">📭 ຍັງບໍ່ມີປະຫວັດການແທງ</div>'; return; }
             bhList.innerHTML = '';
             rounds.forEach(roundId => {
                 const roundData = data[roundId];
                 const meta = roundData._meta || {};
-                let totalBet = 0;
-                let betLines = [];
-
+                let totalBet = 0; let betLines = [];
                 for (let type in roundData) {
                     if (type === '_meta') continue;
-                    const amt = roundData[type];
-                    totalBet += amt;
+                    const amt = roundData[type]; totalBet += amt;
                     betLines.push(`<span class="text-amber-300">${type.replace('_', '-')}</span>: <span class="text-white">${amt.toLocaleString()}</span>`);
                 }
-
                 const card = document.createElement('div');
                 card.className = 'bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1.5';
-                card.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="text-[10px] text-slate-500 font-mono">ຮອບ #${roundId} ${meta.time ? '· ' + meta.time : ''}</span>
-                        <span class="text-[11px] font-bold text-emerald-400 font-mono">ລວມ: ${totalBet.toLocaleString()} ກີບ</span>
-                    </div>
-                    <div class="text-[11px] font-mono space-y-0.5 border-t border-slate-800/60 pt-1.5">
-                        ${betLines.join('<br>')}
-                    </div>
-                `;
+                card.innerHTML = `<div class="flex justify-between items-center"><span class="text-[10px] text-slate-500 font-mono">ຮອບ #${roundId} ${meta.time ? '· ' + meta.time : ''}</span><span class="text-[11px] font-bold text-emerald-400 font-mono">ລວມ: ${totalBet.toLocaleString()} ກີບ</span></div><div class="text-[11px] font-mono space-y-0.5 border-t border-slate-800/60 pt-1.5">${betLines.join('<br>')}</div>`;
                 bhList.appendChild(card);
             });
-        }).catch(() => {
-            bhList.innerHTML = '<div class="text-center text-red-400 text-xs py-6">❌ ໂຫຼດຂໍ້ມູນບໍ່ສຳເລັດ</div>';
-        });
-
+        }).catch(() => { bhList.innerHTML = '<div class="text-center text-red-400 text-xs py-6">❌ ໂຫຼດຂໍ້ມູນບໍ່ສຳເລັດ</div>'; });
         document.getElementById('bet-history-modal').classList.remove('hidden');
     }
 
-    function closeBetHistoryModal() {
-        document.getElementById('bet-history-modal').classList.add('hidden');
-        currentViewBetUser = null;
-    }
+    function closeBetHistoryModal() { document.getElementById('bet-history-modal').classList.add('hidden'); currentViewBetUser = null; }
 
-    /* ================================================================
-       ✨ ຟັງຊັ່ນໃໝ່ #4: Listener Firebase ທີ່ listens bet_history (realtime)
-          ເພື່ອ update modal ອັດຕະໂນມັດຖ້າ modal ເປີດຢູ່
-       ================================================================ */
     function initBetHistoryListener() {
         window.fbOnValue(window.fbRef(window.fbDB, 'bet_history'), (snap) => {
             betHistoryAllUsers = snap.val() || {};
-            /* ຖ້າ modal ເປີດຢູ່ ໃຫ້ refresh */
             if (currentViewBetUser && !document.getElementById('bet-history-modal').classList.contains('hidden')) {
                 openBetHistoryModal(currentViewBetUser);
             }
@@ -830,87 +1273,51 @@
     }
 
     /* ================================================================
-       ຟັງຊັ່ນເດີມ initGameListeners - ເພີ່ມ call initBetHistoryListener + bcInitListeners
+       initGameListeners
        ================================================================ */
     function initGameListeners() {
         const adminRef = window.fbRef(window.fbDB, 'users/admin');
         window.fbGet(adminRef).then((snapshot) => {
             if (!snapshot.exists()) {
-                window.fbSet(adminRef, {
-                    username: 'admin',
-                    password: '94357757', 
-                    role: 'admin',
-                    credit: 999999999, 
-                    lockMode: 'normal'
-                });
+                window.fbSet(adminRef, { username: 'admin', password: '94357757', role: 'admin', credit: 999999999, lockMode: 'normal' });
             }
         }).catch(e => console.error("Error setting admin:", e));
 
         const offsetRef = window.fbRef(window.fbDB, ".info/serverTimeOffset");
-        window.fbOnValue(offsetRef, (snap) => {
-            serverTimeOffset = snap.val() || 0;
-        });
+        window.fbOnValue(offsetRef, (snap) => { serverTimeOffset = snap.val() || 0; });
 
         window.fbOnValue(window.fbRef(window.fbDB, 'game_status/global_mode'), (snapshot) => {
-            if(snapshot.exists()) {
-                gameControlMode = snapshot.val();
-                if(currentActiveUser && currentActiveUser.role === 'admin') {
-                    setCheatModeUI(gameControlMode);
-                }
-            }
+            if(snapshot.exists()) { gameControlMode = snapshot.val(); if(currentActiveUser && currentActiveUser.role === 'admin') { setCheatModeUI(gameControlMode); } }
         });
 
-        /* ✨ ເພີ່ມໃໝ່: listener ໂໝດຄວບຄຸມບາຄາລາ (ແຍກ path ກັບ MOP) */
         window.fbOnValue(window.fbRef(window.fbDB, 'game_status/bc_global_mode'), (snapshot) => {
-            if(snapshot.exists()) {
-                bcGameControlMode = snapshot.val();
-                if(currentActiveUser && currentActiveUser.role === 'admin') {
-                    bcSetCheatModeUI(bcGameControlMode);
-                }
-            }
+            if(snapshot.exists()) { bcGameControlMode = snapshot.val(); if(currentActiveUser && currentActiveUser.role === 'admin') { bcSetCheatModeUI(bcGameControlMode); } }
         });
 
-        window.fbOnValue(window.fbRef(window.fbDB, 'live_bets'), (snapshot) => {
-            liveBetsLog = snapshot.val() || {};
-            updateLiveBetsDisplay();
-        });
+        window.fbOnValue(window.fbRef(window.fbDB, 'live_bets'), (snapshot) => { liveBetsLog = snapshot.val() || {}; updateLiveBetsDisplay(); });
 
         window.fbOnValue(window.fbRef(window.fbDB, 'users'), (snapshot) => {
             allUsersData = snapshot.val() || {};
             updateAdminUserList();
-
             if(currentActiveUser) {
                 if(allUsersData[currentActiveUser.username]) {
                     let freshData = allUsersData[currentActiveUser.username];
-                    if (freshData.isKicked === true) {
-                        window.fbUpdate(window.fbRef(window.fbDB, 'users/' + currentActiveUser.username), { isKicked: false });
-                        handleLogout();
-                        showAlert('⚠️ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່.', "❌");
-                        return;
-                    }
+                    if (freshData.isKicked === true) { window.fbUpdate(window.fbRef(window.fbDB, 'users/' + currentActiveUser.username), { isKicked: false }); handleLogout(); showAlert('⚠️ ກະລຸນາເຂົ້າສູ່ລະບົບໃໝ່.', "❌"); return; }
                     currentActiveUser.credit = freshData.credit;
                     currentActiveUser.lockMode = freshData.lockMode;
                     currentActiveUser.lastTopUpDate = freshData.lastTopUpDate || null;
                     currentActiveUser.lastWithdrawDate = freshData.lastWithdrawDate || null;
-                    /* ✨ ເພີ່ມ: sync isOnline ເຂົ້າ currentActiveUser */
                     currentActiveUser.isOnline = freshData.isOnline;
                     updateUI();
                 }
             }
         });
 
-        window.fbOnValue(window.fbRef(window.fbDB, 'game_status/history_24h'), (snapshot) => {
-            if(snapshot.exists()) {
-                updateHistoryTableUI(snapshot.val());
-            }
-        });
+        window.fbOnValue(window.fbRef(window.fbDB, 'game_status/history_24h'), (snapshot) => { if(snapshot.exists()) { updateHistoryTableUI(snapshot.val()); } });
 
-        /* ✨ ເພີ່ມ: ເລີ່ມ listener ປະຫວັດການແທງ */
         initBetHistoryListener();
-
+        initDepositWithdrawListeners();
         start24hLoopTimer();
-
-        /* ✨ ເພີ່ມ: ເລີ່ມ listener ບາຄາລາ */
         bcInitListeners();
     }
 
@@ -918,142 +1325,65 @@
         const tbody = document.getElementById('result-history-table-body');
         const quickHist = document.getElementById('quick-hist');
         if(!tbody) return;
-
-        let sortedRounds = Object.keys(historyData).map(id => {
-            return { roundId: parseInt(id), dice: historyData[id] };
-        }).sort((a, b) => b.roundId - a.roundId);
-
+        let sortedRounds = Object.keys(historyData).map(id => { return { roundId: parseInt(id), dice: historyData[id] }; }).sort((a, b) => b.roundId - a.roundId);
         if(sortedRounds.length >= 1) {
             let text = `${sortedRounds[0].dice[0].emoji}${sortedRounds[0].dice[1].emoji}${sortedRounds[0].dice[2].emoji}`;
-            if(sortedRounds[1]) {
-                text += ` | ${sortedRounds[1].dice[0].emoji}${sortedRounds[1].dice[1].emoji}${sortedRounds[1].dice[2].emoji}`;
-            }
+            if(sortedRounds[1]) { text += ` | ${sortedRounds[1].dice[0].emoji}${sortedRounds[1].dice[1].emoji}${sortedRounds[1].dice[2].emoji}`; }
             if(quickHist) quickHist.innerText = text;
         }
-
         let statsCount = { 'ປູ': 0, 'ປາ': 0, 'ນ້ຳເຕົ້າ': 0, 'ເສືອ': 0, 'ໄກ່': 0, 'ກຸ້ງ': 0 };
         let last10Rounds = sortedRounds.slice(0, 10);
-        
-        last10Rounds.forEach(r => {
-            r.dice.forEach(d => {
-                if(statsCount[d.name] !== undefined) statsCount[d.name]++;
-            });
-        });
-
-        for(let key in statsCount) {
-            const statEl = document.getElementById(`stat-count-${key}`);
-            if(statEl) statEl.innerText = statsCount[key] + " ເທື່ອ";
-        }
-
+        last10Rounds.forEach(r => { r.dice.forEach(d => { if(statsCount[d.name] !== undefined) statsCount[d.name]++; }); });
+        for(let key in statsCount) { const statEl = document.getElementById(`stat-count-${key}`); if(statEl) statEl.innerText = statsCount[key] + " ເທື່ອ"; }
         tbody.innerHTML = '';
-        if(last10Rounds.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500">⏳ ຍັງບໍ່ມີປະຫວັດການຫຼິ້ນ</td></tr>`;
-            return;
-        }
-
+        if(last10Rounds.length === 0) { tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500">⏳ ຍັງບໍ່ມີປະຫວັດການຫຼິ້ນ</td></tr>`; return; }
         last10Rounds.forEach(r => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-900/40 transition-colors";
-            
-            let names = r.dice.map(d => d.name).join('·');
-            let emojis = r.dice.map(d => d.emoji).join(' ');
-
-            tr.innerHTML = `
-                <td class="p-2.5 text-center text-slate-500 font-mono text-[11px]">#${r.roundId}</td>
-                <td class="p-2.5 text-sm flex items-center space-x-2">
-                    <span class="text-base">${emojis}</span>
-                    <span class="text-[10px] text-slate-400 font-sans">(${names})</span>
-                </td>
-                <td class="p-2.5 text-center font-sans text-[11px]">
-                    <span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded text-[10px]">3 ລູກ</span>
-                </td>
-            `;
+            const tr = document.createElement('tr'); tr.className = "hover:bg-slate-900/40 transition-colors";
+            let names = r.dice.map(d => d.name).join('·'); let emojis = r.dice.map(d => d.emoji).join(' ');
+            tr.innerHTML = `<td class="p-2.5 text-center text-slate-500 font-mono text-[11px]">#${r.roundId}</td><td class="p-2.5 text-sm flex items-center space-x-2"><span class="text-base">${emojis}</span><span class="text-[10px] text-slate-400 font-sans">(${names})</span></td><td class="p-2.5 text-center font-sans text-[11px]"><span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded text-[10px]">3 ລູກ</span></td>`;
             tbody.appendChild(tr);
         });
     }
 
     function start24hLoopTimer() {
-        const DURATION = 20; 
-        const RESULT_DURATION = 8; 
-        const TOTAL_ROUND_TIME = DURATION + RESULT_DURATION; 
-
+        const DURATION = 20; const RESULT_DURATION = 8; const TOTAL_ROUND_TIME = DURATION + RESULT_DURATION;
         setInterval(() => {
-            if (typeof window.fbRef !== 'function') return; 
-            const nowServerTime = Date.now() + serverTimeOffset; 
+            if (typeof window.fbRef !== 'function') return;
+            const nowServerTime = Date.now() + serverTimeOffset;
             const currentSeconds = Math.floor(nowServerTime / 1000);
-            
             const roundId = Math.floor(currentSeconds / TOTAL_ROUND_TIME);
             const timePassedInRound = currentSeconds % TOTAL_ROUND_TIME;
-
             if (timePassedInRound < DURATION) {
-                isBettingOpen = true;
-                isProcessingResult = false;
-                timeLeft = DURATION - timePassedInRound;
-                
+                isBettingOpen = true; isProcessingResult = false; timeLeft = DURATION - timePassedInRound;
                 const statusTxt = document.getElementById('game-status-text');
-                if (statusTxt) {
-                    statusTxt.innerText = "ກຳລັງເປີດຮັບເດີມພັນ";
-                    statusTxt.className = "text-sm font-bold text-emerald-400 animate-pulse";
-                }
+                if (statusTxt) { statusTxt.innerText = "ກຳລັງເປີດຮັບເດີມພັນ"; statusTxt.className = "text-sm font-bold text-emerald-400 animate-pulse"; }
                 const timerBox = document.getElementById('timer-box');
                 if (timerBox) timerBox.innerText = timeLeft;
-
-                if (timeLeft <= 5 && timeLeft > 0) {
-                    if (lastSpokenTime !== timeLeft) {
-                        lastSpokenTime = timeLeft;
-                        window.speechSynthesis.cancel(); 
-                        playAudioResult(timeLeft.toString());
-                    }
-                }
+                if (timeLeft <= 5 && timeLeft > 0) { if (lastSpokenTime !== timeLeft) { lastSpokenTime = timeLeft; window.speechSynthesis.cancel(); playAudioResult(timeLeft.toString()); } }
             } else {
-                isBettingOpen = false;
-                timeLeft = 0;
+                isBettingOpen = false; timeLeft = 0;
                 const timerBox = document.getElementById('timer-box');
                 if (timerBox) timerBox.innerText = timeLeft;
-                
                 const statusTxt = document.getElementById('game-status-text');
-                if (statusTxt) {
-                    statusTxt.innerText = "ປິດຮັບເດີມພັນ / ກຳລັງສັ່ນລູກເຕົາ";
-                    statusTxt.className = "text-sm font-bold text-red-500";
-                }
-
+                if (statusTxt) { statusTxt.innerText = "ປິດຮັບເດີມພັນ / ກຳລັງສັ່ນລູກເຕົາ"; statusTxt.className = "text-sm font-bold text-red-500"; }
                 if (!isProcessingResult) {
                     isProcessingResult = true;
-                    window.speechSynthesis.cancel(); 
-                    soundTimeOut.currentTime = 0; 
-                    soundTimeOut.play().catch(e => console.log(e));
-
+                    window.speechSynthesis.cancel();
+                    soundTimeOut.currentTime = 0; soundTimeOut.play().catch(e => console.log(e));
                     const resultRef = window.fbRef(window.fbDB, `game_status/history_24h/${roundId}`);
-                    
                     window.fbGet(resultRef).then((snapshot) => {
-                        if (snapshot.exists()) {
-                            currentRoundResults = snapshot.val();
-                            if (lastProcessedRoundId !== roundId) {
-                                lastProcessedRoundId = roundId;
-                                shakePlateAndDice();
-                            }
-                        } else {
+                        if (snapshot.exists()) { currentRoundResults = snapshot.val(); if (lastProcessedRoundId !== roundId) { lastProcessedRoundId = roundId; shakePlateAndDice(); } }
+                        else {
                             const generatedResults = generateDiceResults();
-                            window.fbSet(resultRef, generatedResults).then(() => {
-                                currentRoundResults = generatedResults;
-                                if (lastProcessedRoundId !== roundId) {
-                                    lastProcessedRoundId = roundId;
-                                    shakePlateAndDice();
-                                }
-                            });
+                            window.fbSet(resultRef, generatedResults).then(() => { currentRoundResults = generatedResults; if (lastProcessedRoundId !== roundId) { lastProcessedRoundId = roundId; shakePlateAndDice(); } });
                         }
                     });
                 }
             }
-        }, 200); 
+        }, 200);
     }
 
-    function showAlert(message, icon = "🔔") {
-        document.getElementById('alert-icon').innerText = icon;
-        document.getElementById('alert-message').innerText = message;
-        document.getElementById('custom-alert').classList.remove('hidden');
-    }
-
+    function showAlert(message, icon = "🔔") { document.getElementById('alert-icon').innerText = icon; document.getElementById('alert-message').innerText = message; document.getElementById('custom-alert').classList.remove('hidden'); }
     function closeAlert() { document.getElementById('custom-alert').classList.add('hidden'); }
     function toggleAdminPanel() { document.getElementById('admin-panel').classList.toggle('hidden'); }
 
@@ -1068,22 +1398,16 @@
         document.getElementById('md-withdraw-count').innerText = (uData.withdrawCount || 0) + " ຄັ້ງ";
         document.getElementById('user-detail-modal').classList.remove('hidden');
     }
-    function closeUserDetailModal() {
-        document.getElementById('user-detail-modal').classList.add('hidden');
-    }
+    function closeUserDetailModal() { document.getElementById('user-detail-modal').classList.add('hidden'); }
 
     function openCustomerSettingsModal() {
         if(!currentActiveUser) return;
         const uData = allUsersData[currentActiveUser.username] || currentActiveUser;
-        
         document.getElementById('cust-topup-date').innerText = uData.lastTopUpDate || "ຍັງບໍ່ມີປະຫວັດ";
         document.getElementById('cust-withdraw-date').innerText = uData.lastWithdrawDate || "ຍັງບໍ່ມີປະຫວັດ";
-        
         document.getElementById('customer-settings-modal').classList.remove('hidden');
     }
-    function closeCustomerSettingsModal() {
-        document.getElementById('customer-settings-modal').classList.add('hidden');
-    }
+    function closeCustomerSettingsModal() { document.getElementById('customer-settings-modal').classList.add('hidden'); }
 
     function switchAuthPage(pageId) {
         document.getElementById('login-page').classList.add('hidden');
@@ -1095,74 +1419,41 @@
         const u = document.getElementById('reg-username').value.trim();
         const p = document.getElementById('reg-password').value.trim();
         const cp = document.getElementById('reg-confirm-password').value.trim();
-
         if (!u || !p || !cp) return showAlert('ກະລຸນາກອກຂໍ້ມູນໃຫ້ຄົບທຸກຫ້ອງ!', "⚠️");
         if (u.length < 3) return showAlert('ຊື່ຜູ້ໃຊ້ຕ້ອງມີ 3 ຕົວອັກສອນຂຶ້ນໄປ!', "⚠️");
         if (p.length < 4) return showAlert('ລະຫັດຜ່ານຕ້ອງມີ 4 ຕົວອັກສອນຂຶ້ນໄປ!', "⚠️");
         if (p !== cp) return showAlert('ລະຫັດຜ່ານທັງສອງຫ້ອງບໍ່ກົງກັນ!', "❌");
         if (u.toLowerCase() === 'admin') return showAlert('ບໍ່ສາມາດໃຊ້ຊື່ຜູ້ໃຊ້ນີ້ໄດ້!', "❌");
-        
         window.fbGet(window.fbRef(window.fbDB, 'users/' + u)).then((snap) => {
             if (snap.exists()) return showAlert('ຊື່ຜູ້ໃຊ້ນີ້ຖືກນຳໃຊ້ແລ້ວ!', "⚠️");
-
-            const newUserRef = window.fbRef(window.fbDB, 'users/' + u);
-            window.fbSet(newUserRef, { 
-                username: u, password: p, role: 'user', credit: 0, 
-                lockMode: 'normal', topUpCount: 0, topUpAmount: 0, withdrawCount: 0, withdrawAmount: 0,
-                isKicked: false, lastTopUpDate: "", lastWithdrawDate: "",
-                isOnline: false  /* ✨ ເພີ່ມ: ເລີ່ມຕົ້ນ offline */
-            }).then(() => {
-                showAlert(`🎉 ສະໝັກສະມາຊິກສຳເລັດແລ້ວ!`, "🤩");
-                switchAuthPage('login-page');
-                document.getElementById('login-username').value = u;
-                document.getElementById('login-password').value = p;
-            }).catch(e => showAlert('ເກີດຂໍ້ຜິດພາດໃນການເຊື່ອມຕໍ່!', "❌"));
+            window.fbSet(window.fbRef(window.fbDB, 'users/' + u), { username: u, password: p, role: 'user', credit: 0, lockMode: 'normal', topUpCount: 0, topUpAmount: 0, withdrawCount: 0, withdrawAmount: 0, isKicked: false, lastTopUpDate: "", lastWithdrawDate: "", isOnline: false })
+            .then(() => { showAlert(`🎉 ສະໝັກສະມາຊິກສຳເລັດແລ້ວ!`, "🤩"); switchAuthPage('login-page'); document.getElementById('login-username').value = u; document.getElementById('login-password').value = p; })
+            .catch(e => showAlert('ເກີດຂໍ້ຜິດພາດໃນການເຊື່ອມຕໍ່!', "❌"));
         });
     }
 
-    /* ✨ ແຍກສຽງ: ຟັງຊັນນີ້ໃຊ້ສະເພາະ MOP (ນ້ຳເຕົ້າປູປາ)
-       ✨ ເພີ່ມ: ຈະອອກສຽງສະເພາະຕອນຜູ້ໃຊ້ກຳລັງເປີດເບິ່ງ tab "ນ້ຳເຕົ້າປູປາ" ຢູ່ເທົ່ານັ້ນ
-       ເພື່ອບໍ່ໃຫ້ສຽງປົນກັບບາຄາລາ ເຖິງວ່າຮອບ MOP ຈະຍັງປະມວນຜົນຢູ່ພື້ນຫຼັງ */
     function playAudioResult(text) {
         const mopSection = document.getElementById('mop-game-section');
-        if (mopSection && mopSection.classList.contains('hidden')) {
-            return; /* ບໍ່ໄດ້ຢູ່ tab ນ້ຳເຕົ້າປູປາ - ບໍ່ອອກສຽງ */
-        }
+        if (mopSection && mopSection.classList.contains('hidden')) return;
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'th-TH'; 
-            utterance.rate = 0.9;     
-            utterance.pitch = 1.0;    
-
+            utterance.lang = 'th-TH'; utterance.rate = 0.9; utterance.pitch = 1.0;
             const voices = window.speechSynthesis.getVoices();
             const femaleVoice = voices.find(voice => voice.lang.includes('TH') && (voice.name.toLowerCase().includes('female') || voice.name.toLowerCase().includes('google') || voice.name.toLowerCase().includes('narisa')));
-            if (femaleVoice) {
-                utterance.voice = femaleVoice;
-            }
-
+            if (femaleVoice) utterance.voice = femaleVoice;
             window.speechSynthesis.speak(utterance);
         }
     }
 
-    /* ✨ ແຍກສຽງ: ຟັງຊັນນີ້ໃຊ້ສະເພາະ ບາຄາລາ - ບໍ່ປົນກັບ MOP
-       ✨ ເພີ່ມ: ຈະອອກສຽງສະເພາະຕອນຜູ້ໃຊ້ກຳລັງເປີດເບິ່ງ tab "ບາຄາລາ" ຢູ່ເທົ່ານັ້ນ */
     function playBcAudio(text) {
         const bcSection = document.getElementById('baccarat-game-section');
-        if (bcSection && bcSection.classList.contains('hidden')) {
-            return; /* ບໍ່ໄດ້ຢູ່ tab ບາຄາລາ - ບໍ່ອອກສຽງ */
-        }
+        if (bcSection && bcSection.classList.contains('hidden')) return;
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'th-TH';
-            utterance.rate = 0.9;
-            utterance.pitch = 1.0;
-
+            utterance.lang = 'th-TH'; utterance.rate = 0.9; utterance.pitch = 1.0;
             const voices = window.speechSynthesis.getVoices();
             const femaleVoice = voices.find(voice => voice.lang.includes('TH') && (voice.name.toLowerCase().includes('female') || voice.name.toLowerCase().includes('google') || voice.name.toLowerCase().includes('narisa')));
-            if (femaleVoice) {
-                utterance.voice = femaleVoice;
-            }
-
+            if (femaleVoice) utterance.voice = femaleVoice;
             window.speechSynthesis.speak(utterance);
         }
     }
@@ -1170,24 +1461,17 @@
     function updateUI() {
         if(!currentActiveUser) return;
         document.getElementById('user-display-name').innerText = currentActiveUser.username;
-        if(currentActiveUser.role === 'admin') {
-            document.getElementById('credit-display').innerText = "∞ ກີບ";
-        } else {
-            document.getElementById('credit-display').innerText = (currentActiveUser.credit || 0).toLocaleString() + " ກີບ";
-        }
+        if(currentActiveUser.role === 'admin') { document.getElementById('credit-display').innerText = "∞ ກີບ"; }
+        else { document.getElementById('credit-display').innerText = (currentActiveUser.credit || 0).toLocaleString() + " ກີບ"; }
     }
 
-   function getLaoPronunciation(name) {
-    switch(name) {
-        case 'ປູ': return 'ปู';
-        case 'ປາ': return 'ปลา';
-        case 'ນ້ຳເຕົ້າ': return 'น้ำเต้า';
-        case 'ເສືອ': return 'เสือ';
-        case 'ໄກ່': return 'ไก่';
-        case 'ກຸ້ງ': return 'กุ้ง';
-        default: return name;
+    function getLaoPronunciation(name) {
+        switch(name) {
+            case 'ປູ': return 'ปู'; case 'ປາ': return 'ปลา'; case 'ນ້ຳເຕົ້າ': return 'น้ำเต้า';
+            case 'ເສືອ': return 'เสือ'; case 'ໄກ່': return 'ไก่'; case 'ກຸ້ງ': return 'กุ้ง';
+            default: return name;
+        }
     }
-}
 
     function setCheatMode(mode) { window.fbSet(window.fbRef(window.fbDB, 'game_status/global_mode'), mode); }
 
@@ -1195,36 +1479,24 @@
         document.getElementById('btn-mode-normal').className = "bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition border border-slate-700";
         document.getElementById('btn-mode-admin').className = "bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition border border-slate-700";
         document.getElementById('btn-mode-user').className = "bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition border border-slate-700";
-        
         const desc = document.getElementById('mode-desc-text');
-        if(mode === 'normal') {
-            document.getElementById('btn-mode-normal').className = "bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
-            desc.innerText = "ໂໝດປົກກະຕິ: ລະບົບສຸ່ມຜົນແບບຍຸດຕິທຳ 100%";
-        } else if(mode === 'admin') {
-            document.getElementById('btn-mode-admin').className = "bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
-            desc.innerText = "ໂໝດແອດມິນຊະນະ: ອອກໜ້າທີ່ມີຄົນແທງໜ້ອຍທີ່ສຸດ!";
-        } else if(mode === 'user') {
-            document.getElementById('btn-mode-user').className = "bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
-            desc.innerText = "ໂໝດລູກຄ້າຊະນະ: ອອກໜ້າທີ່ມີຄົນແທງຫຼາຍທີ່ສຸດ!";
-        }
+        if(mode === 'normal') { document.getElementById('btn-mode-normal').className = "bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md"; desc.innerText = "ໂໝດປົກກະຕິ: ລະບົບສຸ່ມຜົນແບບຍຸດຕິທຳ 100%"; }
+        else if(mode === 'admin') { document.getElementById('btn-mode-admin').className = "bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md"; desc.innerText = "ໂໝດແອດມິນຊະນະ: ອອກໜ້າທີ່ມີຄົນແທງໜ້ອຍທີ່ສຸດ!"; }
+        else if(mode === 'user') { document.getElementById('btn-mode-user').className = "bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md"; desc.innerText = "ໂໝດລູກຄ້າຊະນະ: ອອກໜ້າທີ່ມີຄົນແທງຫຼາຍທີ່ສຸດ!"; }
     }
 
     function setIndividualLock(username, mode) { window.fbUpdate(window.fbRef(window.fbDB, 'users/' + username), { lockMode: mode }); }
 
     function formatBetLabel(val) {
-        if (val >= 100000) {
-            return (val / 100000) + "ແສນກີບ";
-        } else if (val >= 1000) {
-            return (val / 1000) + "ພັນກີບ";
-        }
+        if (val >= 100000) return (val / 100000) + "ແສນກີບ";
+        else if (val >= 1000) return (val / 1000) + "ພັນກີບ";
         return val + " ກີບ";
     }
 
     function kickUserOut(username) {
         window.fbUpdate(window.fbRef(window.fbDB, 'users/' + username), { isKicked: true })
-        .then(() => {
-            showAlert(`👞 ເຕະ ${username} ອອກຈາກລະບົບແລ້ວ!`, "✅");
-        }).catch(e => showAlert('ເກີດຂໍ້ຜິດພາດ!', "❌"));
+        .then(() => { showAlert(`👞 ເຕະ ${username} ອອກຈາກລະບົບແລ້ວ!`, "✅"); })
+        .catch(e => showAlert('ເກີດຂໍ້ຜິດພາດ!', "❌"));
     }
 
     function switchPage(pageId) {
@@ -1232,25 +1504,26 @@
         document.getElementById('register-page').classList.add('hidden');
         document.getElementById('game-page').classList.add('hidden');
         document.getElementById(pageId).classList.remove('hidden');
-        
-        if(pageId === 'game-page') { 
+        if(pageId === 'game-page') {
             updateUI();
             const roleBadge = document.getElementById('role-badge');
             const toggleBtn = document.getElementById('admin-toggle-btn');
             const adminPanel = document.getElementById('admin-panel');
-            
+            const inboxBtn = document.getElementById('admin-inbox-btn');
             if(currentActiveUser.role === 'admin') {
-                roleBadge.innerText = "ແອດມິນ";
-                roleBadge.className = "bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-bold border border-red-500/30";
-                toggleBtn.classList.remove('hidden');
-                adminPanel.classList.remove('hidden');
-                setCheatModeUI(gameControlMode); 
-                bcSetCheatModeUI(bcGameControlMode);
+                /* admin: ເຊື່ອງປຸ່ມປະຫວັດການເງິນ, ສະແດງປຸ່ມ admin */
+                if(roleBadge) roleBadge.classList.add('hidden');
+                toggleBtn.classList.remove('hidden'); adminPanel.classList.remove('hidden');
+                if(inboxBtn) inboxBtn.classList.remove('hidden');
+                setCheatModeUI(gameControlMode); bcSetCheatModeUI(bcGameControlMode);
+                updateInboxBadge();
             } else {
-                roleBadge.innerText = "ລູກຄ້າ";
-                roleBadge.className = "bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-bold border border-emerald-500/30";
-                toggleBtn.classList.add('hidden');
-                adminPanel.classList.add('hidden');
+                /* ລູກຄ້າ: ສະແດງປຸ່ມປະຫວັດການເງິນ */
+                if(roleBadge) roleBadge.classList.remove('hidden');
+                toggleBtn.classList.add('hidden'); adminPanel.classList.add('hidden');
+                if(inboxBtn) inboxBtn.classList.add('hidden');
+                /* ✨ ເລີ່ມຟັງ realtime ສຳລັບລູກຄ້າ */
+                initUserRequestListener(currentActiveUser.username);
             }
         }
     }
@@ -1258,81 +1531,49 @@
     function handleLogin() {
         const u = document.getElementById('login-username').value.trim();
         const p = document.getElementById('login-password').value.trim();
-        
         if(!u || !p) return showAlert('ກະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ!', "⚠️");
-
         window.fbGet(window.fbRef(window.fbDB, 'users/' + u)).then((snapshot) => {
             if(!snapshot.exists()) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
-            
             let userData = snapshot.val();
             if(userData.password !== p) return showAlert('ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ!', "❌");
-
             window.fbUpdate(window.fbRef(window.fbDB, 'users/' + u), { isKicked: false });
-            
             currentActiveUser = userData;
             localStorage.setItem('saved_username', u);
-
-            /* ✨ ເພີ່ມ: ຕັ້ງ Presence ທັນທີຫຼັງ login */
             setupPresence(u);
-
             switchPage('game-page');
-            playAudioResult(""); 
+            playAudioResult("");
         }).catch(() => showAlert('ເກີດຂໍ້ຜິດພາດໃນການເຊື່ອມຕໍ່!', "❌"));
     }
 
     function selectChip(value) {
         selectedChipValue = value;
-        [5000, 20000, 50000, 100000, 200000].forEach(c => {
-            const btn = document.getElementById(`chip-${c}`);
-            if(btn) btn.classList.remove('chip-active');
-        });
+        [5000, 20000, 50000, 100000, 200000].forEach(c => { const btn = document.getElementById(`chip-${c}`); if(btn) btn.classList.remove('chip-active'); });
         document.getElementById(`chip-${value}`).classList.add('chip-active');
     }
 
     function placeBet(type) {
         if (!isBettingOpen) return showAlert('ປິດຮັບເດີມພັນແລ້ວ!', "⏳");
         if (!currentActiveUser) return showAlert('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ!', "⚠️");
-        
-        if (currentActiveUser.role !== 'admin') {
-            if (!currentActiveUser.credit || currentActiveUser.credit < selectedChipValue) {
-                return showAlert('ເງິນບໍພໍ່! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌");
-            }
-        }
-
+        if (currentActiveUser.role !== 'admin') { if (!currentActiveUser.credit || currentActiveUser.credit < selectedChipValue) { return showAlert('ເຄຣດິດບໍ່ພໍ! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌"); } }
         let myUsername = currentActiveUser.username;
-
-        /* ✨ ຄຳນວນ roundId ປັດຈຸບັນ */
         const TOTAL_ROUND_TIME = 28;
         const nowServerTime = Date.now() + serverTimeOffset;
         const currentRoundId = Math.floor(Math.floor(nowServerTime / 1000) / TOTAL_ROUND_TIME);
-
         if (currentActiveUser.role !== 'admin') {
             const userCreditRef = window.fbRef(window.fbDB, 'users/' + myUsername + '/credit');
             window.fbRunTransaction(userCreditRef, (currentCredit) => {
                 if (currentCredit === null) return 0;
-                if (currentCredit < selectedChipValue) return currentCredit; 
+                if (currentCredit < selectedChipValue) return currentCredit;
                 return currentCredit - selectedChipValue;
             }).then((result) => {
-                if (!result.committed || result.snapshot.val() === null) {
-                    showAlert('ເຄຣດິດບໍ່ພໍ!', "❌");
-                    return;
-                }
+                if (!result.committed || result.snapshot.val() === null) { showAlert('ເຄຣດິດບໍ່ພໍ!', "❌"); return; }
                 const betRef = window.fbRef(window.fbDB, `live_bets/${myUsername}/${type}`);
-                window.fbRunTransaction(betRef, (currentBet) => {
-                    return (currentBet || 0) + selectedChipValue;
-                });
-                /* ✨ ເພີ່ມ: ບັນທຶກລົງປະຫວັດ */
+                window.fbRunTransaction(betRef, (currentBet) => (currentBet || 0) + selectedChipValue);
                 saveBetHistory(myUsername, currentRoundId, type, selectedChipValue);
-            }).catch((err) => {
-                console.error("Bet transaction error:", err);
-                showAlert('ເກີດຂໍ້ຜິດພາດໃນການວາງເດີມພັນ!', "❌");
-            });
+            }).catch((err) => { console.error("Bet transaction error:", err); showAlert('ເກີດຂໍ້ຜິດພາດໃນການວາງເດີມພັນ!', "❌"); });
         } else {
             const betRef = window.fbRef(window.fbDB, `live_bets/${myUsername}/${type}`);
-            window.fbRunTransaction(betRef, (currentBet) => {
-                return (currentBet || 0) + selectedChipValue;
-            });
-            /* ✨ ເພີ່ມ: ບັນທຶກລົງປະຫວັດ (admin ກໍບັນທຶກ) */
+            window.fbRunTransaction(betRef, (currentBet) => (currentBet || 0) + selectedChipValue);
             saveBetHistory(myUsername, currentRoundId, type, selectedChipValue);
         }
     }
@@ -1340,49 +1581,24 @@
     function topUpCredit(action) {
         const targetUser = document.getElementById('target-user').value.trim();
         const amount = parseFloat(document.getElementById('credit-to-add').value);
-
         if(!targetUser || isNaN(amount) || amount <= 0) return showAlert('ຂໍ້ມູນບໍ່ຖືກຕ້ອງ!', "⚠️");
         if(!allUsersData[targetUser]) return showAlert('ບໍ່ພົບຊື່ຜູ້ໃຊ້ນີ້!', "❌");
-
         const d = new Date();
         const dateString = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-
         const userRef = window.fbRef(window.fbDB, 'users/' + targetUser);
         window.fbGet(userRef).then(snapshot => {
             let uData = snapshot.val();
-            if(action === 'add') {
-                window.fbUpdate(userRef, {
-                    credit: (uData.credit || 0) + amount,
-                    topUpCount: (uData.topUpCount || 0) + 1,
-                    topUpAmount: (uData.topUpAmount || 0) + amount,
-                    lastTopUpDate: dateString 
-                }).then(() => showAlert(`👍 ເຕີມເງິນໃຫ້ ${targetUser} ສຳເລັດ!`, "💰"));
-            } else if(action === 'remove') {
-                if((uData.credit || 0) < amount) return showAlert('ບໍມີເງິນໄນບັນຊີຂອງທ່ານ!', "❌");
-                window.fbUpdate(userRef, {
-                    credit: uData.credit - amount,
-                    withdrawCount: (uData.withdrawCount || 0) + 1,
-                    withdrawAmount: (uData.withdrawAmount || 0) + amount,
-                    lastWithdrawDate: dateString 
-                }).then(() => showAlert(`👌 ຖອນເງິນສຳເລັດ!`, "💰"));
-            }
+            if(action === 'add') { window.fbUpdate(userRef, { credit: (uData.credit || 0) + amount, topUpCount: (uData.topUpCount || 0) + 1, topUpAmount: (uData.topUpAmount || 0) + amount, lastTopUpDate: dateString }).then(() => showAlert(`👍 ເຕີມເງິນໃຫ້ ${targetUser} ສຳເລັດ!`, "💰")); }
+            else if(action === 'remove') { if((uData.credit || 0) < amount) return showAlert('ເຄຣດິດບໍ່ພໍໃຫ້ດຶງຄືນ!', "❌"); window.fbUpdate(userRef, { credit: uData.credit - amount, withdrawCount: (uData.withdrawCount || 0) + 1, withdrawAmount: (uData.withdrawAmount || 0) + amount, lastWithdrawDate: dateString }).then(() => showAlert(`👌 ດຶງເຄຣດິດຄືນສຳເລັດ!`, "💰")); }
         });
-
         document.getElementById('target-user').value = '';
         document.getElementById('credit-to-add').value = '';
     }
 
-    /* ================================================================
-       ✨ updateAdminUserList - ເພີ່ມ badge Online/Offline + ປຸ່ມປະຫວັດການແທງ
-          ໝາຍເຫດ: lockMode ນີ້ໃຊ້ຮ່ວມກັນລະຫວ່າງ MOP ແລະ ບາຄາລາ
-          (ລັອກຄົນນີ້ = ມີຜົນທັງສອງເກມພ້ອມກັນ ຍ້ອນ generateDiceResults()
-          ແລະ bcPlayRound() ອ່ານ lockMode ດຽວກັນຈາກ allUsersData)
-       ================================================================ */
     function updateAdminUserList() {
         const listDisplay = document.getElementById('user-list-display');
         if(!listDisplay) return;
         listDisplay.innerHTML = '';
-        
         let hasUser = false;
         for(let key in allUsersData) {
             if(allUsersData[key].role !== 'admin') {
@@ -1392,22 +1608,15 @@
                 const btnNormalClass = uMode === 'normal' ? 'bg-blue-600 text-white font-bold' : 'bg-slate-800 text-slate-400';
                 const btnUserClass = uMode === 'user' ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-800 text-slate-400';
                 const btnAdminClass = uMode === 'admin' ? 'bg-red-600 text-white font-bold' : 'bg-slate-800 text-slate-400';
-
-                /* ✨ ສ້າງ badge Online/Offline */
                 const isOnline = uData.isOnline === true;
                 const onlineBadge = isOnline
                     ? `<span class="flex items-center space-x-1 text-[10px] text-emerald-400 font-bold"><span class="online-dot"></span><span>Online</span></span>`
                     : `<span class="flex items-center space-x-1 text-[10px] text-slate-500"><span class="offline-dot"></span><span>Offline</span></span>`;
-
                 const div = document.createElement('div');
                 div.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-2";
                 div.innerHTML = `
                     <div class="flex justify-between items-start">
-                        <div class="flex flex-col space-y-0.5">
-                            <span class="text-slate-200 font-bold">👤 ${uData.username}</span>
-                            <span class="text-[10px] text-slate-500">ລະຫັດ: ${uData.password}</span>
-                            ${onlineBadge}
-                        </div>
+                        <div class="flex flex-col space-y-0.5"><span class="text-slate-200 font-bold">👤 ${uData.username}</span><span class="text-[10px] text-slate-500">ລະຫັດ: ${uData.password}</span>${onlineBadge}</div>
                         <div class="flex flex-col items-end space-y-1">
                             <span class="text-amber-400 font-bold text-xs font-mono">${(uData.credit || 0).toLocaleString()} ກີບ</span>
                             <div class="flex items-center space-x-1 flex-wrap gap-y-1 justify-end">
@@ -1434,203 +1643,85 @@
         const display = document.getElementById('live-bets-display');
         if(!display) return;
         display.innerHTML = '';
-        
-        allBetTypes.forEach(type => {
-            const badge = document.getElementById(`bet-total-${type}`);
-            if(badge) { badge.innerText = '0'; badge.classList.add('hidden'); }
-        });
-
+        allBetTypes.forEach(type => { const badge = document.getElementById(`bet-total-${type}`); if(badge) { badge.innerText = '0'; badge.classList.add('hidden'); } });
         let hasBets = false;
         for(let username in liveBetsLog) {
-            let userBets = liveBetsLog[username];
-            let betDetails = [];
-            for(let type in userBets) {
-                if(userBets[type] > 0) {
-                    hasBets = true;
-                    let label = type.replace('_', '-');
-                    betDetails.push(`${label}: ${formatBetLabel(userBets[type])}`);
-                }
-            }
-            if(betDetails.length > 0) {
-                const div = document.createElement('div');
-                div.className = "bg-slate-900/60 p-1.5 rounded flex justify-between text-[11px]";
-                div.innerHTML = `<span>${username}</span> <span class="text-amber-400">${betDetails.join(' | ')}</span>`;
-                display.appendChild(div);
-            }
+            let userBets = liveBetsLog[username]; let betDetails = [];
+            for(let type in userBets) { if(userBets[type] > 0) { hasBets = true; let label = type.replace('_', '-'); betDetails.push(`${label}: ${formatBetLabel(userBets[type])}`); } }
+            if(betDetails.length > 0) { const div = document.createElement('div'); div.className = "bg-slate-900/60 p-1.5 rounded flex justify-between text-[11px]"; div.innerHTML = `<span>${username}</span> <span class="text-amber-400">${betDetails.join(' | ')}</span>`; display.appendChild(div); }
         }
-        
         let myUsername = currentActiveUser ? currentActiveUser.username : '';
-        if (liveBetsLog[myUsername]) {
-            for(let type in liveBetsLog[myUsername]) {
-                const badge = document.getElementById(`bet-total-${type}`);
-                if(badge && liveBetsLog[myUsername][type] > 0) {
-                    badge.innerText = formatBetLabel(liveBetsLog[myUsername][type]);
-                    badge.classList.remove('hidden');
-                }
-            }
-        }
+        if (liveBetsLog[myUsername]) { for(let type in liveBetsLog[myUsername]) { const badge = document.getElementById(`bet-total-${type}`); if(badge && liveBetsLog[myUsername][type] > 0) { badge.innerText = formatBetLabel(liveBetsLog[myUsername][type]); badge.classList.remove('hidden'); } } }
         if(!hasBets) display.innerHTML = '<div class="text-slate-600 text-center text-[11px]">⏳ ຍັງບໍ່ມີການວາງເດີມພັນ</div>';
     }
 
     function checkRewardsAndPay(res1, res2, res3) {
         for (let username in liveBetsLog) {
             if(!allUsersData[username]) continue;
-            let userBets = liveBetsLog[username];
-            let winAmount = 0;
-
+            let userBets = liveBetsLog[username]; let winAmount = 0;
             let diceCount = {};
-            [res1, res2, res3].forEach(dice => {
-                diceCount[dice.name] = (diceCount[dice.name] || 0) + 1;
-            });
-
+            [res1, res2, res3].forEach(dice => { diceCount[dice.name] = (diceCount[dice.name] || 0) + 1; });
             for (let type in userBets) {
                 let betAmount = userBets[type];
                 if (betAmount <= 0) continue;
-
-                if (type.includes('_')) {
-                    let [sub1, sub2] = type.split('_');
-                    if (diceCount[sub1] > 0 && diceCount[sub2] > 0) {
-                        winAmount += betAmount + (betAmount * 5);
-                    }
-                } else {
-                    if (diceCount[type]) {
-                        let count = diceCount[type];
-                        winAmount += betAmount + (betAmount * count); 
-                    }
-                }
+                if (type.includes('_')) { let [sub1, sub2] = type.split('_'); if (diceCount[sub1] > 0 && diceCount[sub2] > 0) { winAmount += betAmount + (betAmount * 5); } }
+                else { if (diceCount[type]) { let count = diceCount[type]; winAmount += betAmount + (betAmount * count); } }
             }
-
             if (winAmount > 0) {
-                if (allUsersData[username].role !== 'admin') {
-                    const creditRef = window.fbRef(window.fbDB, 'users/' + username + '/credit');
-                    window.fbRunTransaction(creditRef, (curr) => (curr || 0) + winAmount);
-                }
-                if (currentActiveUser && username === currentActiveUser.username) {
-                    soundWin.currentTime = 0; soundWin.play().catch(e => console.log(e));
-                    setTimeout(() => { showAlert(`🎉 ຍິນດີນຳ! ທ່ານຊະນະໄດ້ຮັບເຄຣດິດ +${winAmount.toLocaleString()} ກີບ`, "🥳"); }, 500);
-                }
+                if (allUsersData[username].role !== 'admin') { const creditRef = window.fbRef(window.fbDB, 'users/' + username + '/credit'); window.fbRunTransaction(creditRef, (curr) => (curr || 0) + winAmount); }
+                if (currentActiveUser && username === currentActiveUser.username) { soundWin.currentTime = 0; soundWin.play().catch(e => console.log(e)); setTimeout(() => { showAlert(`🎉 ຍິນດີນຳ! ທ່ານຊະນະໄດ້ຮັບເຄຣດິດ +${winAmount.toLocaleString()} ກີບ`, "🥳"); }, 500); }
             }
         }
     }
 
     function generateDiceResults() {
-        let totalBetsPerType = {};
-        allBetTypes.forEach(t => totalBetsPerType[t] = 0);
-
-        let activeLockMode = gameControlMode; 
-        let targetUserBets = null;
-
-        for (let username in liveBetsLog) {
-            if (allUsersData[username] && allUsersData[username].lockMode && allUsersData[username].lockMode !== 'normal') {
-                let hasBet = false;
-                for (let type in liveBetsLog[username]) {
-                    if (liveBetsLog[username][type] > 0) hasBet = true;
-                }
-                if (hasBet) { activeLockMode = allUsersData[username].lockMode; targetUserBets = liveBetsLog[username]; break; }
-            }
-        }
-
-        if (targetUserBets) {
-            for (let type in targetUserBets) { totalBetsPerType[type] = targetUserBets[type]; }
-        } else {
-            for (let username in liveBetsLog) {
-                let userBets = liveBetsLog[username];
-                for (let type in userBets) {
-                    if (totalBetsPerType[type] !== undefined) { totalBetsPerType[type] += userBets[type]; }
-                }
-            }
-        }
-
+        let totalBetsPerType = {}; allBetTypes.forEach(t => totalBetsPerType[t] = 0);
+        let activeLockMode = gameControlMode; let targetUserBets = null;
+        for (let username in liveBetsLog) { if (allUsersData[username] && allUsersData[username].lockMode && allUsersData[username].lockMode !== 'normal') { let hasBet = false; for (let type in liveBetsLog[username]) { if (liveBetsLog[username][type] > 0) hasBet = true; } if (hasBet) { activeLockMode = allUsersData[username].lockMode; targetUserBets = liveBetsLog[username]; break; } } }
+        if (targetUserBets) { for (let type in targetUserBets) { totalBetsPerType[type] = targetUserBets[type]; } }
+        else { for (let username in liveBetsLog) { let userBets = liveBetsLog[username]; for (let type in userBets) { if (totalBetsPerType[type] !== undefined) { totalBetsPerType[type] += userBets[type]; } } } }
         let finalMainTypesScore = { 'ປູ': 0, 'ປາ': 0, 'ນ້ຳເຕົ້າ': 0, 'ເສືອ': 0, 'ໄກ່': 0, 'ກຸ້ງ': 0 };
-        for (let key in totalBetsPerType) {
-            if (key.includes('_')) {
-                let [s1, s2] = key.split('_');
-                finalMainTypesScore[s1] += totalBetsPerType[key] * 0.5;
-                finalMainTypesScore[s2] += totalBetsPerType[key] * 0.5;
-            } else {
-                finalMainTypesScore[key] += totalBetsPerType[key];
-            }
-        }
-
+        for (let key in totalBetsPerType) { if (key.includes('_')) { let [s1, s2] = key.split('_'); finalMainTypesScore[s1] += totalBetsPerType[key] * 0.5; finalMainTypesScore[s2] += totalBetsPerType[key] * 0.5; } else { finalMainTypesScore[key] += totalBetsPerType[key]; } }
         let sortedTypes = Object.keys(finalMainTypesScore).map(name => { return { name: name, amount: finalMainTypesScore[name] }; });
         let finalDice = [];
-
-        if (activeLockMode === 'admin') {
-            sortedTypes.sort((a, b) => a.amount - b.amount);
-            let pool = [sortedTypes[0].name, sortedTypes[0].name, sortedTypes[1].name, sortedTypes[2].name];
-            for(let i = 0; i < 3; i++) { 
-                let randomName = pool[Math.floor(Math.random() * pool.length)];
-                finalDice.push(diceItems.find(d => d.name === randomName)); 
-            }
-        } else if (activeLockMode === 'user') {
-            sortedTypes.sort((a, b) => b.amount - a.amount);
-            let pool = [sortedTypes[0].name, sortedTypes[0].name, sortedTypes[1].name, sortedTypes[2].name];
-            for(let i = 0; i < 3; i++) { 
-                let randomName = pool[Math.floor(Math.random() * pool.length)];
-                finalDice.push(diceItems.find(d => d.name === randomName)); 
-            }
-        } else {
-            for(let i = 0; i < 3; i++) { finalDice.push(diceItems[Math.floor(Math.random() * diceItems.length)]); }
-        }
+        if (activeLockMode === 'admin') { sortedTypes.sort((a, b) => a.amount - b.amount); let pool = [sortedTypes[0].name, sortedTypes[0].name, sortedTypes[1].name, sortedTypes[2].name]; for(let i = 0; i < 3; i++) { let randomName = pool[Math.floor(Math.random() * pool.length)]; finalDice.push(diceItems.find(d => d.name === randomName)); } }
+        else if (activeLockMode === 'user') { sortedTypes.sort((a, b) => b.amount - a.amount); let pool = [sortedTypes[0].name, sortedTypes[0].name, sortedTypes[1].name, sortedTypes[2].name]; for(let i = 0; i < 3; i++) { let randomName = pool[Math.floor(Math.random() * pool.length)]; finalDice.push(diceItems.find(d => d.name === randomName)); } }
+        else { for(let i = 0; i < 3; i++) { finalDice.push(diceItems[Math.floor(Math.random() * diceItems.length)]); } }
         return finalDice;
     }
 
     function shakePlateAndDice() {
         if (!currentRoundResults) return;
-        const plate = document.getElementById('main-plate');
-        const cup = document.getElementById('main-cup');
-        const c1 = document.getElementById('cube-1');
-        const c2 = document.getElementById('cube-2');
-        const c3 = document.getElementById('cube-3');
-
-        if (cup) cup.className = "dice-cup absolute w-[150px] h-[130px] bottom-[25px] closed"; 
+        const plate = document.getElementById('main-plate'); const cup = document.getElementById('main-cup');
+        const c1 = document.getElementById('cube-1'); const c2 = document.getElementById('cube-2'); const c3 = document.getElementById('cube-3');
+        if (cup) cup.className = "dice-cup absolute w-[150px] h-[130px] bottom-[25px] closed";
         if (plate) plate.classList.add('shaking');
-        if (c1) c1.classList.add('rolling'); 
-        if (c2) c2.classList.add('rolling'); 
-        if (c3) c3.classList.add('rolling');
-
+        if (c1) c1.classList.add('rolling'); if (c2) c2.classList.add('rolling'); if (c3) c3.classList.add('rolling');
         setTimeout(() => {
             if (plate) plate.classList.remove('shaking');
             if (c1) { c1.classList.remove('rolling'); c1.style.transform = currentRoundResults[0].rotate; }
             if (c2) { c2.classList.remove('rolling'); c2.style.transform = currentRoundResults[1].rotate; }
             if (c3) { c3.classList.remove('rolling'); c3.style.transform = currentRoundResults[2].rotate; }
-
             setTimeout(openCupAutomatically, 500);
-        }, 1500); 
+        }, 1500);
     }
 
     function openCupAutomatically() {
         const cup = document.getElementById('main-cup');
-        if (cup) cup.className = "dice-cup absolute w-[150px] h-[130px] bottom-[25px] opened"; 
-
-        const res1 = currentRoundResults[0];
-        const res2 = currentRoundResults[1];
-        const res3 = currentRoundResults[2];
-
-        const read1 = getLaoPronunciation(res1.name);
-        const read2 = getLaoPronunciation(res2.name);
-        const read3 = getLaoPronunciation(res3.name);
-        
+        if (cup) cup.className = "dice-cup absolute w-[150px] h-[130px] bottom-[25px] opened";
+        const res1 = currentRoundResults[0]; const res2 = currentRoundResults[1]; const res3 = currentRoundResults[2];
+        const read1 = getLaoPronunciation(res1.name); const read2 = getLaoPronunciation(res2.name); const read3 = getLaoPronunciation(res3.name);
         playAudioResult(`ອອກ ${read1} ${read2} ${read3}`);
-
         checkRewardsAndPay(res1, res2, res3);
-
-        setTimeout(() => {
-            if (currentActiveUser) {
-                window.fbRemove(window.fbRef(window.fbDB, 'live_bets/' + currentActiveUser.username));
-            }
-            if (cup) cup.className = "dice-cup absolute w-[150px] h-[130px] bottom-[25px] closed"; 
-        }, 4000);
+        setTimeout(() => { if (currentActiveUser) { window.fbRemove(window.fbRef(window.fbDB, 'live_bets/' + currentActiveUser.username)); } if (cup) cup.className = "dice-cup absolute w-[150px] h-[130px] bottom-[25px] closed"; }, 4000);
     }
 
-    function handleLogout() { 
-        /* ✨ ເພີ່ມ: set isOnline = false ເມື່ອ logout ດ້ວຍຕົນເອງ */
-        if (currentActiveUser && currentActiveUser.username) {
-            window.fbSet(window.fbRef(window.fbDB, 'users/' + currentActiveUser.username + '/isOnline'), false);
-        }
-        currentActiveUser = null; 
-        localStorage.removeItem('saved_username');
-        switchPage('login-page'); 
+    function handleLogout() {
+        if (currentActiveUser && currentActiveUser.username) { window.fbSet(window.fbRef(window.fbDB, 'users/' + currentActiveUser.username + '/isOnline'), false); }
+        /* reset known statuses */
+        _knownDepositStatuses = {};
+        _knownWithdrawStatuses = {};
+        currentActiveUser = null; localStorage.removeItem('saved_username'); switchPage('login-page');
     }
 
     window.addEventListener('load', () => {
@@ -1638,12 +1729,7 @@
             const savedUser = localStorage.getItem('saved_username');
             if (savedUser) {
                 window.fbGet(window.fbRef(window.fbDB, 'users/' + savedUser)).then((snapshot) => {
-                    if (snapshot.exists()) {
-                        currentActiveUser = snapshot.val();
-                        /* ✨ ເພີ່ມ: ຕັ້ງ Presence ເມື່ອ auto-login */
-                        setupPresence(savedUser);
-                        switchPage('game-page');
-                    }
+                    if (snapshot.exists()) { currentActiveUser = snapshot.val(); setupPresence(savedUser); switchPage('game-page'); }
                 });
             }
         }, 1200);
@@ -1652,197 +1738,173 @@
     switchPage('login-page');
 </script>
 
-<!-- =========================================================== -->
-<!-- ✨ SCRIPT ໃໝ່: ລະບົບບາຄາລາ (Baccarat) ທັງໝົດ                -->
-<!-- =========================================================== -->
 <script>
-    /* ============================================================
-       ✨ ລະບົບບາຄາລາ (Baccarat) - Tab ໃໝ່
-       ใช้บัญชี/เครดิต/แอดมินรวมกับ MOP ผ่าน Firebase เดิม
-       ============================================================ */
+    /* ================================================================
+       ✨ ປະຫວັດການເງິນ (ລູກຄ້າ)
+       ================================================================ */
+    let _myFinanceTab = 'deposit';
 
-    let bcCurrentRoundId = null;
-    let bcTimeLeft = 20;
-    let bcBettingOpen = true;
-    let bcSelectedChip = 5000;
-    let bcResultHistory = [];
-    let bcProcessing = false;
-    let bcLastProcessedRound = null;
-    let bcLiveBets = {};
-    /* ✨ ເພີ່ມໃໝ່: ໂໝດຄວບຄຸມຜົນລວມສະເພາະບາຄາລາ (ແຍກກັບ gameControlMode ຂອງ MOP) */
-    let bcGameControlMode = 'normal';
-
-    const BC_ROUND_BET_TIME = 20;
-    const BC_ROUND_REVEAL_TIME = 8;
-    const BC_ROUND_TOTAL = BC_ROUND_BET_TIME + BC_ROUND_REVEAL_TIME;
-
-    const BC_SUITS = ['♠','♥','♦','♣'];
-    const BC_RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-
-    function bcCardValue(rank) {
-        if (rank === 'A') return 1;
-        if (['10','J','Q','K'].includes(rank)) return 0;
-        return parseInt(rank);
+    function openMyFinanceModal() {
+        if (!currentActiveUser) return;
+        const uData = allUsersData[currentActiveUser.username] || currentActiveUser;
+        document.getElementById('mf-credit').innerText = (uData.credit || 0).toLocaleString() + ' ກີບ';
+        document.getElementById('mf-topup-total').innerText = (uData.topUpAmount || 0).toLocaleString() + ' ກີບ';
+        document.getElementById('mf-withdraw-total').innerText = (uData.withdrawAmount || 0).toLocaleString() + ' ກີບ';
+        document.getElementById('my-finance-modal').classList.remove('hidden');
+        switchMyFinanceTab('deposit');
     }
+
+    function closeMyFinanceModal() {
+        document.getElementById('my-finance-modal').classList.add('hidden');
+    }
+
+    function switchMyFinanceTab(tab) {
+        _myFinanceTab = tab;
+        const btnD = document.getElementById('mf-tab-deposit');
+        const btnW = document.getElementById('mf-tab-withdraw');
+        if (tab === 'deposit') {
+            btnD.className = 'bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition';
+            btnW.className = 'bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition';
+        } else {
+            btnW.className = 'bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition';
+            btnD.className = 'bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition';
+        }
+        renderMyFinanceList();
+    }
+
+    function renderMyFinanceList() {
+        if (!currentActiveUser) return;
+        const listEl = document.getElementById('mf-list');
+        listEl.innerHTML = '<div class="text-center text-slate-500 text-xs py-6">⏳ ກຳລັງໂຫຼດ...</div>';
+        const path = _myFinanceTab === 'deposit' ? 'deposit_requests' : 'withdraw_requests';
+        window.fbGet(window.fbRef(window.fbDB, path)).then(snap => {
+            if (!snap.exists()) {
+                listEl.innerHTML = '<div class="text-center text-slate-500 text-xs py-8">📭 ຍັງບໍ່ມີລາຍການ</div>';
+                return;
+            }
+            const data = snap.val();
+            /* ກັ່ນສະເພາະ username ຂອງຕົວເອງ ແລ້ວ sort ໃໝ່ -> ຫຼ້າສຸດກ່ອນ */
+            const myItems = Object.entries(data)
+                .filter(([, req]) => req.username === currentActiveUser.username)
+                .sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+
+            if (myItems.length === 0) {
+                listEl.innerHTML = '<div class="text-center text-slate-500 text-xs py-8">📭 ຍັງບໍ່ມີລາຍການ</div>';
+                return;
+            }
+            listEl.innerHTML = '';
+            myItems.forEach(([reqId, req]) => {
+                const statusConf = {
+                    pending:  { text: 'ລໍຖ້າ',    cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30',   icon: '⏳' },
+                    approved: { text: 'ອະນຸມັດແລ້ວ', cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: '✅' },
+                    rejected: { text: 'ປະຕິເສດ',   cls: 'bg-red-500/20 text-red-400 border-red-500/30',       icon: '❌' }
+                };
+                const s = statusConf[req.status] || statusConf.pending;
+                const isDeposit = _myFinanceTab === 'deposit';
+                const borderLeft = isDeposit ? 'border-l-2 border-l-emerald-600' : 'border-l-2 border-l-red-600';
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-950 border border-slate-800 ${borderLeft} rounded-xl p-3 space-y-2`;
+
+                /* ສ່ວນ hint ຂຶ້ນກັບ status */
+                let hint = '';
+                if (req.status === 'approved' && isDeposit) {
+                    hint = `<p class="text-[10px] text-emerald-400 font-bold mt-1">✅ ເຄຣດິດຖືກເຕີມເຂົ້າບັນຊີຂອງທ່ານແລ້ວ</p>`;
+                } else if (req.status === 'approved' && !isDeposit) {
+                    hint = `<p class="text-[10px] text-emerald-400 font-bold mt-1">✅ ເງິນໄດ້ຮັບການໂອນໃຫ້ທ່ານແລ້ວ ກວດ QR ຂອງທ່ານ</p>`;
+                } else if (req.status === 'rejected') {
+                    hint = `<p class="text-[10px] text-red-400 font-bold mt-1">❌ ຄຳຂໍຖືກປະຕິເສດ ກະລຸນາຕິດຕໍ່ admin</p>`;
+                } else {
+                    hint = `<p class="text-[10px] text-amber-400 mt-1">⏳ ກຳລັງລໍຖ້າ admin ກວດສອບ...</p>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[10px] text-slate-500 font-mono">${req.time}</span>
+                            ${hint}
+                        </div>
+                        <div class="flex flex-col items-end space-y-1">
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border ${s.cls}">${s.icon} ${s.text}</span>
+                            <span class="${isDeposit ? 'text-emerald-400' : 'text-red-400'} font-bold font-mono text-xs">${isDeposit ? '+' : '-'}${(req.amount||0).toLocaleString()} ກີບ</span>
+                        </div>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        });
+    }
+
+</script>
+
+<!-- BACCARAT SCRIPT -->
+<script>
+    let bcCurrentRoundId = null; let bcTimeLeft = 20; let bcBettingOpen = true;
+    let bcSelectedChip = 5000; let bcResultHistory = []; let bcProcessing = false;
+    let bcLastProcessedRound = null; let bcLiveBets = {}; let bcGameControlMode = 'normal';
+
+    const BC_ROUND_BET_TIME = 20; const BC_ROUND_REVEAL_TIME = 8; const BC_ROUND_TOTAL = BC_ROUND_BET_TIME + BC_ROUND_REVEAL_TIME;
+    const BC_SUITS = ['♠','♥','♦','♣']; const BC_RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+    function bcCardValue(rank) { if (rank === 'A') return 1; if (['10','J','Q','K'].includes(rank)) return 0; return parseInt(rank); }
 
     function bcCreateShuffledDeck() {
         let deck = [];
-        for (let d = 0; d < 8; d++) {
-            for (let s of BC_SUITS) {
-                for (let r of BC_RANKS) {
-                    deck.push({ rank: r, suit: s });
-                }
-            }
-        }
-        for (let i = deck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [deck[i], deck[j]] = [deck[j], deck[i]];
-        }
+        for (let d = 0; d < 8; d++) { for (let s of BC_SUITS) { for (let r of BC_RANKS) { deck.push({ rank: r, suit: s }); } } }
+        for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
         return deck;
     }
 
-    function bcHandTotal(cards) {
-        let sum = cards.reduce((a, c) => a + bcCardValue(c.rank), 0);
-        return sum % 10;
-    }
+    function bcHandTotal(cards) { let sum = cards.reduce((a, c) => a + bcCardValue(c.rank), 0); return sum % 10; }
 
-    /* ✨ ເພີ່ມໃໝ່: ຄຳນວນວ່າຮອບນີ້ຄວນ "ບັງຄັບ" ໃຫ້ຝັ່ງໃດຊະນະ
-       ອີງຕາມ gameControlMode ຂອງບາຄາລາ ຫຼື lockMode ສ່ວນບຸກຄົນ (ໃຊ້ຮ່ວມກັນກັບ MOP)
-       ສົ່ງຄືນ: 'player' | 'banker' | 'tie' | null (null = ປົກກະຕິ ບໍ່ບັງຄັບ) */
     function bcDetermineForcedWinner() {
-        let activeMode = bcGameControlMode;
-
-        /* ກວດສອບລັອກສ່ວນບຸກຄົນກ່ອນ (ມີຄວາມສຳຄັນສູງສຸດ, ໃຊ້ lockMode ດຽວກັນກັບ MOP) */
-        let targetUserBets = null;
-        for (let username in bcLiveBets) {
-            if (allUsersData[username] && allUsersData[username].lockMode && allUsersData[username].lockMode !== 'normal') {
-                let hasBet = false;
-                for (let side in bcLiveBets[username]) {
-                    if (bcLiveBets[username][side] > 0) hasBet = true;
-                }
-                if (hasBet) { activeMode = allUsersData[username].lockMode; targetUserBets = bcLiveBets[username]; break; }
-            }
-        }
-
+        let activeMode = bcGameControlMode; let targetUserBets = null;
+        for (let username in bcLiveBets) { if (allUsersData[username] && allUsersData[username].lockMode && allUsersData[username].lockMode !== 'normal') { let hasBet = false; for (let side in bcLiveBets[username]) { if (bcLiveBets[username][side] > 0) hasBet = true; } if (hasBet) { activeMode = allUsersData[username].lockMode; targetUserBets = bcLiveBets[username]; break; } } }
         if (activeMode === 'normal') return null;
-
-        /* ລວມຍອດແທງແຕ່ລະຝັ່ງ (player/banker/tie) */
         let totals = { player: 0, banker: 0, tie: 0 };
-        if (targetUserBets) {
-            totals.player = targetUserBets.player || 0;
-            totals.banker = targetUserBets.banker || 0;
-            totals.tie = targetUserBets.tie || 0;
-        } else {
-            for (let username in bcLiveBets) {
-                let b = bcLiveBets[username];
-                totals.player += b.player || 0;
-                totals.banker += b.banker || 0;
-                totals.tie += b.tie || 0;
-            }
-        }
-
-        /* ຖ້າບໍ່ມີໃຜແທງເລີຍ ໃຫ້ປ່ອຍປົກກະຕິ */
+        if (targetUserBets) { totals.player = targetUserBets.player || 0; totals.banker = targetUserBets.banker || 0; totals.tie = targetUserBets.tie || 0; }
+        else { for (let username in bcLiveBets) { let b = bcLiveBets[username]; totals.player += b.player || 0; totals.banker += b.banker || 0; totals.tie += b.tie || 0; } }
         if (totals.player === 0 && totals.banker === 0 && totals.tie === 0) return null;
-
         let sides = ['player', 'banker', 'tie'].map(s => ({ name: s, amount: totals[s] }));
-
-        if (activeMode === 'admin') {
-            /* ແອດມິນຊະນະ: ໃຫ້ອອກຝັ່ງທີ່ມີຄົນແທງໜ້ອຍສຸດ (ລູກຄ້າເສຍ) */
-            sides.sort((a, b) => a.amount - b.amount);
-            return sides[0].name;
-        } else if (activeMode === 'user') {
-            /* ລູກຄ້າຊະນະ: ໃຫ້ອອກຝັ່ງທີ່ມີຄົນແທງຫຼາຍສຸດ (ລູກຄ້າຊະນະ) */
-            sides.sort((a, b) => b.amount - a.amount);
-            return sides[0].name;
-        }
+        if (activeMode === 'admin') { sides.sort((a, b) => a.amount - b.amount); return sides[0].name; }
+        else if (activeMode === 'user') { sides.sort((a, b) => b.amount - a.amount); return sides[0].name; }
         return null;
     }
 
-    /* ✨ ແກ້ໄຂ: bcPlayRound() ຮັບຄ່າ forcedWinner ເພື່ອບັງຄັບຜົນ
-       ຍັງແຈກໄພ່ຕາມກົດບາຄາລາແທ້ (ຈັ່ວໄພ່ໃບທີ 3 ຕາມກົດມາດຕະຖານ)
-       ໂດຍລອງສຸ່ມໃໝ່ຫຼາຍຄັ້ງຈົນກວ່າຈະໄດ້ຜົນທີ່ຕ້ອງການ (ສູງສຸດ 500 ຄັ້ງ)
-       ຖ້າລອງເກີນກຳນົດ (ກໍລະນີ tie ຫາຍາກ) ຈະໃຊ້ຜົນສຸ່ມຫຼ້າສຸດແທນ ເພື່ອບໍ່ໃຫ້ຄ້າງ */
     function bcPlayRound(forcedWinner = null) {
-        const MAX_ATTEMPTS = forcedWinner === 'tie' ? 3000 : 500;
-        let lastResult = null;
-
-        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-            const result = bcPlaySingleDeal();
-            lastResult = result;
-            if (!forcedWinner || result.winner === forcedWinner) {
-                return result;
-            }
-        }
-        /* ບໍ່ສາມາດສຸ່ມໄດ້ຜົນທີ່ຕ້ອງການພາຍໃນຈຳນວນຄັ້ງທີ່ກຳນົດ - ສົ່ງຄືນຜົນສຸ່ມຫຼ້າສຸດ */
+        const MAX_ATTEMPTS = forcedWinner === 'tie' ? 3000 : 500; let lastResult = null;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) { const result = bcPlaySingleDeal(); lastResult = result; if (!forcedWinner || result.winner === forcedWinner) { return result; } }
         return lastResult;
     }
 
-    /* ແຈກໄພ່ 1 ຮອບ ຕາມກົດບາຄາລາມາດຕະຖານ - ໃຊ້ສຳລັບທັງໂໝດປົກກະຕິ ແລະ ການລອງສຸ່ມໃນໂໝດບັງຄັບ */
     function bcPlaySingleDeal() {
-        const deck = bcCreateShuffledDeck();
-        let idx = 0;
-        const draw = () => deck[idx++];
-
-        let player = [draw(), draw()];
-        let banker = [draw(), draw()];
-
-        let pTotal = bcHandTotal(player);
-        let bTotal = bcHandTotal(banker);
-
-        if (pTotal >= 8 || bTotal >= 8) {
-            return bcFinalizeRound(player, banker);
-        }
-
+        const deck = bcCreateShuffledDeck(); let idx = 0; const draw = () => deck[idx++];
+        let player = [draw(), draw()]; let banker = [draw(), draw()];
+        let pTotal = bcHandTotal(player); let bTotal = bcHandTotal(banker);
+        if (pTotal >= 8 || bTotal >= 8) { return bcFinalizeRound(player, banker); }
         let playerThirdCard = null;
-
-        if (pTotal <= 5) {
-            playerThirdCard = draw();
-            player.push(playerThirdCard);
-        }
-
+        if (pTotal <= 5) { playerThirdCard = draw(); player.push(playerThirdCard); }
         let bankerDraws = false;
-        if (playerThirdCard === null) {
-            bankerDraws = bTotal <= 5;
-        } else {
-            const pcRaw = bcCardValue(playerThirdCard.rank);
-            const pc = pcRaw === 0 ? 10 : pcRaw;
-            if (bTotal <= 2) bankerDraws = true;
-            else if (bTotal === 3) bankerDraws = pc !== 8;
-            else if (bTotal === 4) bankerDraws = [2,3,4,5,6,7].includes(pc);
-            else if (bTotal === 5) bankerDraws = [4,5,6,7].includes(pc);
-            else if (bTotal === 6) bankerDraws = [6,7].includes(pc);
-            else bankerDraws = false;
-        }
-
-        if (bankerDraws) {
-            banker.push(draw());
-        }
-
+        if (playerThirdCard === null) { bankerDraws = bTotal <= 5; }
+        else { const pcRaw = bcCardValue(playerThirdCard.rank); const pc = pcRaw === 0 ? 10 : pcRaw; if (bTotal <= 2) bankerDraws = true; else if (bTotal === 3) bankerDraws = pc !== 8; else if (bTotal === 4) bankerDraws = [2,3,4,5,6,7].includes(pc); else if (bTotal === 5) bankerDraws = [4,5,6,7].includes(pc); else if (bTotal === 6) bankerDraws = [6,7].includes(pc); else bankerDraws = false; }
+        if (bankerDraws) { banker.push(draw()); }
         return bcFinalizeRound(player, banker);
     }
 
     function bcFinalizeRound(player, banker) {
-        const pTotal = bcHandTotal(player);
-        const bTotal = bcHandTotal(banker);
-        let winner = 'tie';
-        if (pTotal > bTotal) winner = 'player';
-        else if (bTotal > pTotal) winner = 'banker';
+        const pTotal = bcHandTotal(player); const bTotal = bcHandTotal(banker);
+        let winner = 'tie'; if (pTotal > bTotal) winner = 'player'; else if (bTotal > pTotal) winner = 'banker';
         return { player, banker, pTotal, bTotal, winner };
     }
 
     function bcCardHTML(card, faceDown) {
-        if (faceDown) {
-            return `<div class="bc-card bc-card-back"></div>`;
-        }
+        if (faceDown) return `<div class="bc-card bc-card-back"></div>`;
         const isRed = card.suit === '♥' || card.suit === '♦';
-        return `<div class="bc-card ${isRed ? 'bc-red' : 'bc-black'}">
-            <span class="bc-rank">${card.rank}</span><span class="bc-suit">${card.suit}</span>
-        </div>`;
+        return `<div class="bc-card ${isRed ? 'bc-red' : 'bc-black'}"><span class="bc-rank">${card.rank}</span><span class="bc-suit">${card.suit}</span></div>`;
     }
 
     function bcRenderHands(playerCards, bankerCards, revealed) {
-        const pEl = document.getElementById('bc-player-cards');
-        const bEl = document.getElementById('bc-banker-cards');
+        const pEl = document.getElementById('bc-player-cards'); const bEl = document.getElementById('bc-banker-cards');
         if (!pEl || !bEl) return;
         pEl.innerHTML = playerCards.map(c => bcCardHTML(c, !revealed)).join('');
         bEl.innerHTML = bankerCards.map(c => bcCardHTML(c, !revealed)).join('');
@@ -1850,83 +1912,35 @@
 
     function bcSelectChip(value) {
         bcSelectedChip = value;
-        [5000, 20000, 50000, 100000, 200000].forEach(c => {
-            const btn = document.getElementById(`bc-chip-${c}`);
-            if (btn) btn.classList.remove('chip-active');
-        });
-        const active = document.getElementById(`bc-chip-${value}`);
-        if (active) active.classList.add('chip-active');
+        [5000, 20000, 50000, 100000, 200000].forEach(c => { const btn = document.getElementById(`bc-chip-${c}`); if (btn) btn.classList.remove('chip-active'); });
+        const active = document.getElementById(`bc-chip-${value}`); if (active) active.classList.add('chip-active');
     }
 
     function bcPlaceBet(side) {
         if (!bcBettingOpen) return showAlert('ປິດຮັບເດີມພັນແລ້ວ!', "⏳");
         if (!currentActiveUser) return showAlert('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ!', "⚠️");
-
-        if (currentActiveUser.role !== 'admin') {
-            if (!currentActiveUser.credit || currentActiveUser.credit < bcSelectedChip) {
-                return showAlert('ເງິນບໍພໍ່! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌");
-            }
-        }
-
+        if (currentActiveUser.role !== 'admin') { if (!currentActiveUser.credit || currentActiveUser.credit < bcSelectedChip) { return showAlert('ເຄຣດິດບໍ່ພໍ! ກະລຸນາເຕີມເງິນເພື່ອແທງ', "❌"); } }
         let myUsername = currentActiveUser.username;
-
         if (currentActiveUser.role !== 'admin') {
             const userCreditRef = window.fbRef(window.fbDB, 'users/' + myUsername + '/credit');
-            window.fbRunTransaction(userCreditRef, (currentCredit) => {
-                if (currentCredit === null) return 0;
-                if (currentCredit < bcSelectedChip) return currentCredit;
-                return currentCredit - bcSelectedChip;
-            }).then((result) => {
-                if (!result.committed || result.snapshot.val() === null) {
-                    showAlert('ເງິນບໍພໍ່!', "❌");
-                    return;
-                }
-                const betRef = window.fbRef(window.fbDB, `baccarat_live_bets/${myUsername}/${side}`);
-                window.fbRunTransaction(betRef, (cur) => (cur || 0) + bcSelectedChip);
-            }).catch((err) => {
-                console.error("Baccarat bet error:", err);
-                showAlert('ເກີດຂໍ້ຜິດພາດໃນການວາງເດີມພັນ!', "❌");
-            });
-        } else {
-            const betRef = window.fbRef(window.fbDB, `baccarat_live_bets/${myUsername}/${side}`);
-            window.fbRunTransaction(betRef, (cur) => (cur || 0) + bcSelectedChip);
-        }
+            window.fbRunTransaction(userCreditRef, (currentCredit) => { if (currentCredit === null) return 0; if (currentCredit < bcSelectedChip) return currentCredit; return currentCredit - bcSelectedChip; })
+            .then((result) => { if (!result.committed || result.snapshot.val() === null) { showAlert('ເຄຣດິດບໍ່ພໍ!', "❌"); return; } const betRef = window.fbRef(window.fbDB, `baccarat_live_bets/${myUsername}/${side}`); window.fbRunTransaction(betRef, (cur) => (cur || 0) + bcSelectedChip); })
+            .catch((err) => { console.error("Baccarat bet error:", err); showAlert('ເກີດຂໍ້ຜິດພາດໃນການວາງເດີມພັນ!', "❌"); });
+        } else { const betRef = window.fbRef(window.fbDB, `baccarat_live_bets/${myUsername}/${side}`); window.fbRunTransaction(betRef, (cur) => (cur || 0) + bcSelectedChip); }
     }
 
     function bcUpdateLiveBetsDisplay() {
         let myTotals = { player: 0, banker: 0, tie: 0 };
         let myUsername = currentActiveUser ? currentActiveUser.username : '';
-        if (bcLiveBets[myUsername]) {
-            myTotals.player = bcLiveBets[myUsername].player || 0;
-            myTotals.banker = bcLiveBets[myUsername].banker || 0;
-            myTotals.tie = bcLiveBets[myUsername].tie || 0;
-        }
-
-        const pBadge = document.getElementById('bc-bet-player-amt');
-        const bBadge = document.getElementById('bc-bet-banker-amt');
-        const tBadge = document.getElementById('bc-bet-tie-amt');
+        if (bcLiveBets[myUsername]) { myTotals.player = bcLiveBets[myUsername].player || 0; myTotals.banker = bcLiveBets[myUsername].banker || 0; myTotals.tie = bcLiveBets[myUsername].tie || 0; }
+        const pBadge = document.getElementById('bc-bet-player-amt'); const bBadge = document.getElementById('bc-bet-banker-amt'); const tBadge = document.getElementById('bc-bet-tie-amt');
         if (pBadge) { pBadge.innerText = myTotals.player.toLocaleString(); pBadge.classList.toggle('hidden', myTotals.player <= 0); }
         if (bBadge) { bBadge.innerText = myTotals.banker.toLocaleString(); bBadge.classList.toggle('hidden', myTotals.banker <= 0); }
         if (tBadge) { tBadge.innerText = myTotals.tie.toLocaleString(); tBadge.classList.toggle('hidden', myTotals.tie <= 0); }
-
         const adminDisplay = document.getElementById('bc-admin-live-bets');
         if (adminDisplay) {
-            adminDisplay.innerHTML = '';
-            let hasBets = false;
-            for (let username in bcLiveBets) {
-                let b = bcLiveBets[username];
-                let parts = [];
-                if (b.player > 0) parts.push(`ຜູ້ເລ່ນ:${b.player.toLocaleString()}`);
-                if (b.banker > 0) parts.push(`ເຈົ້າມື:${b.banker.toLocaleString()}`);
-                if (b.tie > 0) parts.push(`ສະເໝີ:${b.tie.toLocaleString()}`);
-                if (parts.length > 0) {
-                    hasBets = true;
-                    const div = document.createElement('div');
-                    div.className = "bg-slate-900/60 p-1.5 rounded flex justify-between text-[11px]";
-                    div.innerHTML = `<span>${username}</span> <span class="text-amber-400">${parts.join(' | ')}</span>`;
-                    adminDisplay.appendChild(div);
-                }
-            }
+            adminDisplay.innerHTML = ''; let hasBets = false;
+            for (let username in bcLiveBets) { let b = bcLiveBets[username]; let parts = []; if (b.player > 0) parts.push(`ຜູ້ເລ່ນ:${b.player.toLocaleString()}`); if (b.banker > 0) parts.push(`ເຈົ້າມື:${b.banker.toLocaleString()}`); if (b.tie > 0) parts.push(`ເສມີ:${b.tie.toLocaleString()}`); if (parts.length > 0) { hasBets = true; const div = document.createElement('div'); div.className = "bg-slate-900/60 p-1.5 rounded flex justify-between text-[11px]"; div.innerHTML = `<span>${username}</span> <span class="text-amber-400">${parts.join(' | ')}</span>`; adminDisplay.appendChild(div); } }
             if (!hasBets) adminDisplay.innerHTML = '<div class="text-slate-600 text-center text-[11px]">⏳ ຍັງບໍ່ມີການວາງເດີມພັນ</div>';
         }
     }
@@ -1934,275 +1948,124 @@
     function bcCheckRewardsAndPay(result) {
         for (let username in bcLiveBets) {
             if (!allUsersData[username]) continue;
-            let bets = bcLiveBets[username];
-            let winAmount = 0;
-
-            if (result.winner === 'player' && bets.player > 0) {
-                winAmount += bets.player * 2;
-            }
-            if (result.winner === 'banker' && bets.banker > 0) {
-                winAmount += bets.banker + (bets.banker * 0.95);
-            }
-            if (result.winner === 'tie') {
-                if (bets.tie > 0) winAmount += bets.tie + (bets.tie * 8);
-                if (bets.player > 0) winAmount += bets.player;
-                if (bets.banker > 0) winAmount += bets.banker;
-            }
-
+            let bets = bcLiveBets[username]; let winAmount = 0;
+            if (result.winner === 'player' && bets.player > 0) { winAmount += bets.player * 2; }
+            if (result.winner === 'banker' && bets.banker > 0) { winAmount += bets.banker + (bets.banker * 0.95); }
+            if (result.winner === 'tie') { if (bets.tie > 0) winAmount += bets.tie + (bets.tie * 8); if (bets.player > 0) winAmount += bets.player; if (bets.banker > 0) winAmount += bets.banker; }
             if (winAmount > 0) {
-                if (allUsersData[username].role !== 'admin') {
-                    const creditRef = window.fbRef(window.fbDB, 'users/' + username + '/credit');
-                    window.fbRunTransaction(creditRef, (curr) => (curr || 0) + winAmount);
-                }
-                if (currentActiveUser && username === currentActiveUser.username) {
-                    soundWin.currentTime = 0; soundWin.play().catch(e => console.log(e));
-                    setTimeout(() => { showAlert(`🎉 ຍິນດີນຳ! ທ່ານໄດ້ຮັບເຄຣດິດ +${Math.round(winAmount).toLocaleString()} ກີບ`, "🥳"); }, 500);
-                }
+                if (allUsersData[username].role !== 'admin') { const creditRef = window.fbRef(window.fbDB, 'users/' + username + '/credit'); window.fbRunTransaction(creditRef, (curr) => (curr || 0) + winAmount); }
+                if (currentActiveUser && username === currentActiveUser.username) { soundWin.currentTime = 0; soundWin.play().catch(e => console.log(e)); setTimeout(() => { showAlert(`🎉 ຍິນດີນຳ! ທ່ານໄດ້ຮັບເຄຣດິດ +${Math.round(winAmount).toLocaleString()} ກີບ`, "🥳"); }, 500); }
             }
         }
     }
 
     function bcUpdateResultBeadRoad(historyData) {
-        const grid = document.getElementById('bc-bead-road');
-        if (!grid) return;
-        let rounds = Object.keys(historyData).map(id => ({ id: parseInt(id), data: historyData[id] }))
-            .sort((a, b) => a.id - b.id).slice(-60);
-
+        const grid = document.getElementById('bc-bead-road'); if (!grid) return;
+        let rounds = Object.keys(historyData).map(id => ({ id: parseInt(id), data: historyData[id] })).sort((a, b) => a.id - b.id).slice(-60);
         grid.innerHTML = '';
         rounds.forEach(r => {
-            const w = r.data.winner;
-            let cls = 'bc-bead-tie', label = 'T';
-            if (w === 'player') { cls = 'bc-bead-player'; label = 'P'; }
-            else if (w === 'banker') { cls = 'bc-bead-banker'; label = 'B'; }
-            const dot = document.createElement('div');
-            dot.className = `bc-bead ${cls}`;
-            dot.innerText = label;
-            grid.appendChild(dot);
+            const w = r.data.winner; let cls = 'bc-bead-tie', label = 'T';
+            if (w === 'player') { cls = 'bc-bead-player'; label = 'P'; } else if (w === 'banker') { cls = 'bc-bead-banker'; label = 'B'; }
+            const dot = document.createElement('div'); dot.className = `bc-bead ${cls}`; dot.innerText = label; grid.appendChild(dot);
         });
-
         let pCount = rounds.filter(r => r.data.winner === 'player').length;
         let bCount = rounds.filter(r => r.data.winner === 'banker').length;
         let tCount = rounds.filter(r => r.data.winner === 'tie').length;
-        const statEl = document.getElementById('bc-stats-text');
-        if (statEl) statEl.innerText = `ຜູ້ເລ່ນ ${pCount} | ເຈົ້າມື ${bCount} | ເສມີ ${tCount}`;
+        const statEl = document.getElementById('bc-stats-text'); if (statEl) statEl.innerText = `ຜູ້ເລ່ນ ${pCount} | ເຈົ້າມື ${bCount} | ເສມີ ${tCount}`;
     }
 
-    /* Timer Loop - แยกจาก MOP timer แต่ใช้ serverTimeOffset เดียวกัน, รอบ 20 วินาที */
     function bcStartLoopTimer() {
         setInterval(() => {
             if (typeof window.fbRef !== 'function') return;
             const nowServerTime = Date.now() + serverTimeOffset;
             const currentSeconds = Math.floor(nowServerTime / 1000);
-
-            /* offset เวลาให้ไม่ตรงกับรอบของ MOP เพื่อไม่ให้ roundId ชนกัน */
             const roundId = Math.floor(currentSeconds / BC_ROUND_TOTAL) + 500000000;
             const timePassed = currentSeconds % BC_ROUND_TOTAL;
-
             if (timePassed < BC_ROUND_BET_TIME) {
-                bcBettingOpen = true;
-                bcProcessing = false;
-                bcTimeLeft = BC_ROUND_BET_TIME - timePassed;
-
-                const statusTxt = document.getElementById('bc-status-text');
-                if (statusTxt) {
-                    statusTxt.innerText = "ກຳລັງເປີດຮັບເດີມພັນ";
-                    statusTxt.className = "text-sm font-bold text-emerald-400 animate-pulse";
-                }
-                const timerBox = document.getElementById('bc-timer-box');
-                if (timerBox) timerBox.innerText = bcTimeLeft;
-
-                if (bcLastProcessedRound !== null && bcLastProcessedRound !== roundId) {
-                    bcRenderHands([], [], false);
-                    const pT = document.getElementById('bc-player-total');
-                    const bT = document.getElementById('bc-banker-total');
-                    if (pT) pT.innerText = '0';
-                    if (bT) bT.innerText = '0';
-                }
+                bcBettingOpen = true; bcProcessing = false; bcTimeLeft = BC_ROUND_BET_TIME - timePassed;
+                const statusTxt = document.getElementById('bc-status-text'); if (statusTxt) { statusTxt.innerText = "ກຳລັງເປີດຮັບເດີມພັນ"; statusTxt.className = "text-sm font-bold text-emerald-400 animate-pulse"; }
+                const timerBox = document.getElementById('bc-timer-box'); if (timerBox) timerBox.innerText = bcTimeLeft;
+                if (bcLastProcessedRound !== null && bcLastProcessedRound !== roundId) { bcRenderHands([], [], false); const pT = document.getElementById('bc-player-total'); const bT = document.getElementById('bc-banker-total'); if (pT) pT.innerText = '0'; if (bT) bT.innerText = '0'; }
             } else {
-                bcBettingOpen = false;
-                bcTimeLeft = 0;
-                const timerBox = document.getElementById('bc-timer-box');
-                if (timerBox) timerBox.innerText = '0';
-
-                const statusTxt = document.getElementById('bc-status-text');
-                if (statusTxt) {
-                    statusTxt.innerText = "ປິດຮັບເດີມພັນ / ກຳລັງປ່ຽນໄພ່";
-                    statusTxt.className = "text-sm font-bold text-red-500";
-                }
-
+                bcBettingOpen = false; bcTimeLeft = 0;
+                const timerBox = document.getElementById('bc-timer-box'); if (timerBox) timerBox.innerText = '0';
+                const statusTxt = document.getElementById('bc-status-text'); if (statusTxt) { statusTxt.innerText = "ປິດຮັບເດີມພັນ / ກຳລັງປ່ຽນໄພ່"; statusTxt.className = "text-sm font-bold text-red-500"; }
                 if (!bcProcessing) {
-                    bcProcessing = true;
-                    soundTimeOut.currentTime = 0;
-                    soundTimeOut.play().catch(e => console.log(e));
-
+                    bcProcessing = true; soundTimeOut.currentTime = 0; soundTimeOut.play().catch(e => console.log(e));
                     const resultRef = window.fbRef(window.fbDB, `baccarat_history/${roundId}`);
                     window.fbGet(resultRef).then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const result = snapshot.val();
-                            if (bcLastProcessedRound !== roundId) {
-                                bcLastProcessedRound = roundId;
-                                bcRevealRound(result);
-                            }
-                        } else {
-                            /* ✨ ແກ້ໄຂ: ຄຳນວນຜົນທີ່ຄວນບັງຄັບ (ຖ້າມີ) ກ່ອນແຈກໄພ່ */
-                            const forcedWinner = bcDetermineForcedWinner();
-                            const result = bcPlayRound(forcedWinner);
-                            window.fbSet(resultRef, result).then(() => {
-                                if (bcLastProcessedRound !== roundId) {
-                                    bcLastProcessedRound = roundId;
-                                    bcRevealRound(result);
-                                }
-                            });
-                        }
+                        if (snapshot.exists()) { const result = snapshot.val(); if (bcLastProcessedRound !== roundId) { bcLastProcessedRound = roundId; bcRevealRound(result); } }
+                        else { const forcedWinner = bcDetermineForcedWinner(); const result = bcPlayRound(forcedWinner); window.fbSet(resultRef, result).then(() => { if (bcLastProcessedRound !== roundId) { bcLastProcessedRound = roundId; bcRevealRound(result); } }); }
                     });
                 }
             }
         }, 200);
     }
 
-    /* ✨ ສະແດງໄພ່ທີລະໃບ (sequential) ສຳລັບໃບທີ່ລະບຸ index, ໃບອື່ນຍັງເປັນ face-down ຫຼືຍັງບໍ່ສະແດງ */
     function bcRenderPartial(playerCards, bankerCards, playerRevealedCount, bankerRevealedCount) {
-        const pEl = document.getElementById('bc-player-cards');
-        const bEl = document.getElementById('bc-banker-cards');
+        const pEl = document.getElementById('bc-player-cards'); const bEl = document.getElementById('bc-banker-cards');
         if (!pEl || !bEl) return;
-
-        let pHtml = '';
-        for (let i = 0; i < playerCards.length; i++) {
-            if (i < playerRevealedCount) pHtml += bcCardHTML(playerCards[i], false);
-            else pHtml += '';
-        }
-        let bHtml = '';
-        for (let i = 0; i < bankerCards.length; i++) {
-            if (i < bankerRevealedCount) bHtml += bcCardHTML(bankerCards[i], false);
-            else bHtml += '';
-        }
-        pEl.innerHTML = pHtml;
-        bEl.innerHTML = bHtml;
+        let pHtml = ''; for (let i = 0; i < playerCards.length; i++) { if (i < playerRevealedCount) pHtml += bcCardHTML(playerCards[i], false); }
+        let bHtml = ''; for (let i = 0; i < bankerCards.length; i++) { if (i < bankerRevealedCount) bHtml += bcCardHTML(bankerCards[i], false); }
+        pEl.innerHTML = pHtml; bEl.innerHTML = bHtml;
     }
 
-    /* ✨ ເປີດໄພ່ສະຫຼັບກັນທີລະໃບ: ຜູ້ເລ່ນ -> ເຈົ້າມື -> ຜູ້ເລ່ນ -> ເຈົ້າມື -> (ໃບທີ 3 ຖ້າມີ) */
     function bcRevealRound(result) {
         bcRenderHands([], [], false);
-
-        const CARD_DELAY = 700; /* ໄລຍະຫ່າງລະຫວ່າງການເປີດແຕ່ລະໃບ */
-        let step = 0;
-
-        /* ສ້າງລຳດັບການເປີດ: ສະຫຼັບ ຜູ້ເລ່ນ/ເຈົ້າມື ທີລະໃບ ຕາມຈຳນວນໄພ່ແທ້ຈິງທີ່ມີ */
-        let revealSteps = [];
-        const maxCards = Math.max(result.player.length, result.banker.length);
-        for (let i = 0; i < maxCards; i++) {
-            if (i < result.player.length) revealSteps.push('player');
-            if (i < result.banker.length) revealSteps.push('banker');
-        }
-
+        const CARD_DELAY = 700; let step = 0;
+        let revealSteps = []; const maxCards = Math.max(result.player.length, result.banker.length);
+        for (let i = 0; i < maxCards; i++) { if (i < result.player.length) revealSteps.push('player'); if (i < result.banker.length) revealSteps.push('banker'); }
         let pCount = 0, bCount = 0;
-
         function revealNext() {
             if (step >= revealSteps.length) {
-                /* ເປີດໄພ່ຄົບແລ້ວ - ສະແດງຄະແນນ ແລະ ປະກາດຜົນ */
-                const pT = document.getElementById('bc-player-total');
-                const bT = document.getElementById('bc-banker-total');
-                if (pT) pT.innerText = result.pTotal;
-                if (bT) bT.innerText = result.bTotal;
-
-                /* ✨ ສຽງອ່ານອອກຜົນເປັນພາສາໄທ (ໃຊ້ playBcAudio ແຍກຈາກ MOP) */
+                const pT = document.getElementById('bc-player-total'); const bT = document.getElementById('bc-banker-total');
+                if (pT) pT.innerText = result.pTotal; if (bT) bT.innerText = result.bTotal;
                 let winText = result.winner === 'player' ? 'ผู้เล่นชนะ' : result.winner === 'banker' ? 'เจ้ามือชนะ' : 'เสมอ';
                 playBcAudio(winText);
-
                 bcCheckRewardsAndPay(result);
-
-                setTimeout(() => {
-                    if (currentActiveUser) {
-                        window.fbRemove(window.fbRef(window.fbDB, 'baccarat_live_bets/' + currentActiveUser.username));
-                    }
-                }, 4000);
+                setTimeout(() => { if (currentActiveUser) { window.fbRemove(window.fbRef(window.fbDB, 'baccarat_live_bets/' + currentActiveUser.username)); } }, 4000);
                 return;
             }
-
-            const side = revealSteps[step];
-            if (side === 'player') pCount++;
-            else bCount++;
-
+            const side = revealSteps[step]; if (side === 'player') pCount++; else bCount++;
             bcRenderPartial(result.player, result.banker, pCount, bCount);
-            soundBeep.currentTime = 0;
-            soundBeep.play().catch(e => {});
-
-            step++;
-            setTimeout(revealNext, CARD_DELAY);
+            soundBeep.currentTime = 0; soundBeep.play().catch(e => {});
+            step++; setTimeout(revealNext, CARD_DELAY);
         }
-
         setTimeout(revealNext, 400);
     }
 
-    /* ✨ ເພີ່ມໃໝ່: ສະຫຼັບໂໝດຄວບຄຸມບາຄາລາ (ບັນທຶກລົງ Firebase path ແຍກກັບ MOP) */
     function bcSetCheatMode(mode) { window.fbSet(window.fbRef(window.fbDB, 'game_status/bc_global_mode'), mode); }
 
-    /* ✨ ເພີ່ມໃໝ່: ອັບເດດ UI ປຸ່ມໂໝດຄວບຄຸມບາຄາລາ */
     function bcSetCheatModeUI(mode) {
-        const btnNormal = document.getElementById('bc-btn-mode-normal');
-        const btnAdmin = document.getElementById('bc-btn-mode-admin');
-        const btnUser = document.getElementById('bc-btn-mode-user');
+        const btnNormal = document.getElementById('bc-btn-mode-normal'); const btnAdmin = document.getElementById('bc-btn-mode-admin'); const btnUser = document.getElementById('bc-btn-mode-user');
         if (!btnNormal || !btnAdmin || !btnUser) return;
-
         btnNormal.className = "bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition border border-slate-700";
         btnAdmin.className = "bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition border border-slate-700";
         btnUser.className = "bg-slate-800 text-slate-400 font-bold py-2 rounded-xl text-xs transition border border-slate-700";
-
         const desc = document.getElementById('bc-mode-desc-text');
-        if (mode === 'normal') {
-            btnNormal.className = "bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
-            if (desc) desc.innerText = "ໂໝດປົກກະຕິ: ລະບົບສຸ່ມຜົນແບບຍຸດຕິທຳ 100%";
-        } else if (mode === 'admin') {
-            btnAdmin.className = "bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
-            if (desc) desc.innerText = "ໂໝດແອດມິນຊະນະ: ອອກຝັ່ງທີ່ມີຄົນແທງໜ້ອຍທີ່ສຸດ!";
-        } else if (mode === 'user') {
-            btnUser.className = "bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md";
-            if (desc) desc.innerText = "ໂໝດລູກຄ້າຊະນະ: ອອກຝັ່ງທີ່ມີຄົນແທງຫຼາຍທີ່ສຸດ!";
-        }
+        if (mode === 'normal') { btnNormal.className = "bg-blue-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md"; if (desc) desc.innerText = "ໂໝດປົກກະຕິ: ລະບົບສຸ່ມຜົນແບບຍຸດຕິທຳ 100%"; }
+        else if (mode === 'admin') { btnAdmin.className = "bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md"; if (desc) desc.innerText = "ໂໝດແອດມິນຊະນະ: ອອກຝັ່ງທີ່ມີຄົນແທງໜ້ອຍທີ່ສຸດ!"; }
+        else if (mode === 'user') { btnUser.className = "bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs transition border border-transparent shadow-md"; if (desc) desc.innerText = "ໂໝດລູກຄ້າຊະນະ: ອອກຝັ່ງທີ່ມີຄົນແທງຫຼາຍທີ່ສຸດ!"; }
     }
 
-    /* Listeners init - เรียกจาก initGameListeners() เดิม */
     function bcInitListeners() {
-        window.fbOnValue(window.fbRef(window.fbDB, 'baccarat_live_bets'), (snapshot) => {
-            bcLiveBets = snapshot.val() || {};
-            bcUpdateLiveBetsDisplay();
-        });
-
-        window.fbOnValue(window.fbRef(window.fbDB, 'baccarat_history'), (snapshot) => {
-            if (snapshot.exists()) {
-                bcUpdateResultBeadRoad(snapshot.val());
-            }
-        });
-
+        window.fbOnValue(window.fbRef(window.fbDB, 'baccarat_live_bets'), (snapshot) => { bcLiveBets = snapshot.val() || {}; bcUpdateLiveBetsDisplay(); });
+        window.fbOnValue(window.fbRef(window.fbDB, 'baccarat_history'), (snapshot) => { if (snapshot.exists()) { bcUpdateResultBeadRoad(snapshot.val()); } });
         bcStartLoopTimer();
     }
 
-    /* Tab switching ລະຫວ່າງ MOP ແລະ ບາຄາລາ */
     function switchGameTab(tab) {
-        const mopSection = document.getElementById('mop-game-section');
-        const bcSection = document.getElementById('baccarat-game-section');
-        const tabMop = document.getElementById('tab-btn-mop');
-        const tabBc = document.getElementById('tab-btn-baccarat');
-
-        /* ✨ ຍົກເລີກສຽງທີ່ຄ້າງຢູ່ໃນຄິວທັນທີທີ່ສະຫຼັບ tab ເພື່ອບໍ່ໃຫ້ສຽງເກົ່າຄ້າງຂ້າມເກມ */
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
-
+        const mopSection = document.getElementById('mop-game-section'); const bcSection = document.getElementById('baccarat-game-section');
+        const tabMop = document.getElementById('tab-btn-mop'); const tabBc = document.getElementById('tab-btn-baccarat');
+        if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
         if (tab === 'mop') {
-            mopSection.classList.remove('hidden');
-            bcSection.classList.add('hidden');
-            tabMop.classList.add('bg-blue-600', 'text-white');
-            tabMop.classList.remove('bg-slate-800', 'text-slate-400');
-            tabBc.classList.add('bg-slate-800', 'text-slate-400');
-            tabBc.classList.remove('bg-red-600', 'text-white');
+            mopSection.classList.remove('hidden'); bcSection.classList.add('hidden');
+            tabMop.classList.add('bg-blue-600', 'text-white'); tabMop.classList.remove('bg-slate-800', 'text-slate-400');
+            tabBc.classList.add('bg-slate-800', 'text-slate-400'); tabBc.classList.remove('bg-red-600', 'text-white');
         } else {
-            mopSection.classList.add('hidden');
-            bcSection.classList.remove('hidden');
-            tabBc.classList.add('bg-red-600', 'text-white');
-            tabBc.classList.remove('bg-slate-800', 'text-slate-400');
-            tabMop.classList.add('bg-slate-800', 'text-slate-400');
-            tabMop.classList.remove('bg-blue-600', 'text-white');
+            mopSection.classList.add('hidden'); bcSection.classList.remove('hidden');
+            tabBc.classList.add('bg-red-600', 'text-white'); tabBc.classList.remove('bg-slate-800', 'text-slate-400');
+            tabMop.classList.add('bg-slate-800', 'text-slate-400'); tabMop.classList.remove('bg-blue-600', 'text-white');
         }
     }
 </script>
